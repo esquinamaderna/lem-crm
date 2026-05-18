@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0f0f0f;
+  --surface: #171717;
+  --card: #1e1e1e;
+  --card2: #242424;
+  --border: #2e2e2e;
+  --borderl: #252525;
+  --gold: #c9a227;
+  --gold-d: #8a6d15;
+  --gold-bg: rgba(201, 162, 39, 0.08);
+  --text: #ede9e3;
+  --muted: #7a776f;
+  --dim: #444440;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Georgia', serif;
+  font-size: 14px;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Inputs base ── */
+input, select, textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: 'Georgia', serif;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--gold-d);
+}
+
+/* ── Category badges ── */
+.cat-vacuno  { background: rgba(192,57,43,.15);  color: #e57368; border: 1px solid rgba(192,57,43,.3); }
+.cat-cerdo   { background: rgba(208,122,58,.15); color: #e8914d; border: 1px solid rgba(208,122,58,.3); }
+.cat-pollo   { background: rgba(201,162,39,.15); color: #c9a227; border: 1px solid rgba(201,162,39,.3); }
+.cat-papas   { background: rgba(76,175,125,.15); color: #66c99a; border: 1px solid rgba(76,175,125,.3); }
+.cat-jumbalay{ background: rgba(155,114,212,.15);color: #b990e8; border: 1px solid rgba(155,114,212,.3);}
+.cat-packs   { background: rgba(91,155,213,.15); color: #7db5e8; border: 1px solid rgba(91,155,213,.3); }
+
+/* ── Status badges ── */
+.badge-green  { background: rgba(76,175,125,.12); color: #4caf7d; border: 1px solid rgba(76,175,125,.25); }
+.badge-gold   { background: rgba(201,162,39,.12); color: #c9a227; border: 1px solid rgba(201,162,39,.25); }
+.badge-red    { background: rgba(217,95,95,.12);  color: #d95f5f; border: 1px solid rgba(217,95,95,.25); }
+.badge-blue   { background: rgba(91,155,213,.12); color: #5b9bd5; border: 1px solid rgba(91,155,213,.25); }
+.badge-purple { background: rgba(155,114,212,.12);color: #9b72d4; border: 1px solid rgba(155,114,212,.25);}
+.badge-gray   { background: rgba(122,119,111,.12);color: #7a776f; border: 1px solid rgba(122,119,111,.25);}
+
+/* ── Print ── */
+@media print {
+  body * { display: none !important; }
+  #print-area, #print-area * { display: block !important; }
+  #print-area {
+    color: #000;
+    background: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    padding: 4mm;
+  }
+}
