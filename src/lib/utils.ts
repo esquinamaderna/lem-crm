@@ -42,6 +42,11 @@ export function fechaES(dateStr: string): string {
   }
 }
 
+// Sumar días a una fecha ISO y retornar legible
+export function dateAdd(dateStr: string, days: number): string {
+  return fechaES(dateAddISO(dateStr, days))
+}
+
 // Sumar días a una fecha ISO y retornar ISO
 export function dateAddISO(dateStr: string, days: number): string {
   return addDays(parseISO(dateStr), days).toISOString().split('T')[0]
