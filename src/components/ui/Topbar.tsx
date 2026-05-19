@@ -56,7 +56,7 @@ export function Topbar() {
       <header style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px', height: 50, background: '#171717', borderBottom: '1px solid #8a6d15', position: 'sticky', top: 0, zIndex: 100 }}>
         {/* Logo */}
         <div className="topbar-logo" style={{ fontSize: 12, letterSpacing: 2, color: '#c9a227', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          <span className="logo-text">La Esquina</span> <small style={{ color: '#7a776f', fontSize: 10, marginLeft: 4, letterSpacing: 1 }}>CRM</small>
+          <span className="topbar-logo-full">La Esquina de Maderna</span><span className="topbar-logo-short" style={{ display: 'none' }}>LEM</span> <small style={{ color: '#7a776f', fontSize: 10, marginLeft: 4, letterSpacing: 1 }}>CRM</small>
         </div>
 
         {/* Desktop nav */}
@@ -66,7 +66,7 @@ export function Topbar() {
               {label}
             </Link>
           ))}
-          <span style={{ color: '#2e2e2e', padding: '0 6px', fontSize: 16 }}>·</span>
+          <span className="topbar-sep" style={{ color: '#2e2e2e', padding: '0 6px', fontSize: 16, flexShrink: 0 }}>·</span>
           {NAV_OPERACIONES.map(({ href, label }) => (
             <Link key={href} href={href} style={navStyle(path === href || path.startsWith(href + '/'))}>
               {label}
@@ -120,15 +120,30 @@ export function Topbar() {
       )}
 
       <style>{`
-        .logo-text { white-space: nowrap; }
-        @media (max-width: 1100px) and (min-width: 769px) {
-          .logo-text { display: none; }
-        }
         .hide-mobile { display: flex !important; }
         .show-mobile { display: none !important; }
         @media (max-width: 768px) {
           .hide-mobile { display: none !important; }
           .show-mobile { display: flex !important; }
+        }
+        /* Nav compacto en pantallas medianas */
+        @media (max-width: 1200px) and (min-width: 769px) {
+          .topbar-nav a {
+            padding: 4px 7px !important;
+            font-size: 10px !important;
+            letter-spacing: 0.5px !important;
+          }
+          .topbar-sep { padding: 0 3px !important; }
+          .topbar-logo-full { display: none !important; }
+          .topbar-logo-short { display: inline !important; }
+        }
+        @media (min-width: 769px) {
+          .topbar-nav {
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+          }
+          .topbar-nav::-webkit-scrollbar { display: none; }
         }
       `}</style>
     </>
