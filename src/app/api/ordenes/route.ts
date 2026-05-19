@@ -24,10 +24,12 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   const sb = createServerClient()
-  const { id, ...rest } = await req.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const body = await req.json() as any
+  const { id, ...rest } = body
   const { data, error } = await sb
     .from('ordenes_produccion')
-    .update({ ...rest, updated_at: new Date().toISOString() })
+    .update({ estado: rest.estado, responsable: rest.responsable, notas: rest.notas, etiquetas_generadas: rest.etiquetas_generadas, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single()

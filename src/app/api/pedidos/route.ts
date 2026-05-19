@@ -37,10 +37,12 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   const sb = createServerClient()
-  const { id, ...rest } = await req.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const body = await req.json() as any
+  const { id, ...rest } = body
   const { data, error } = await sb
     .from('pedidos')
-    .update({ ...rest, updated_at: new Date().toISOString() })
+    .update({ estado: rest.estado, cobrado: rest.cobrado, medio_pago: rest.medio_pago, notas: rest.notas, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single()

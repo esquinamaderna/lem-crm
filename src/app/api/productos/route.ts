@@ -22,8 +22,15 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   const sb = createServerClient()
-  const { id, ...rest } = await req.json()
-  const { data, error } = await sb.from('productos').update({ ...rest, updated_at: new Date().toISOString() }).eq('id', id).select().single()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const body = await req.json() as any
+  const { id, ...rest } = body
+  const { data, error } = await sb
+    .from('productos')
+    .update({ nombre: rest.nombre, precio_venta: rest.precio_venta, costo: rest.costo, stock_kg: rest.stock_kg, vida_util_dias: rest.vida_util_dias, instrucciones: rest.instrucciones, activo: rest.activo, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
