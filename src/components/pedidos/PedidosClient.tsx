@@ -107,8 +107,8 @@ export function PedidosClient() {
   const print = () => { const pa = document.getElementById('print-area'); if (pa) { pa.innerHTML = printHTML; window.print() } }
   const pendientes = pedidos.filter(p => !['cobrado', 'cancelado'].includes(p.estado)).length
   const hoyTotal = pedidos.filter(p => p.fecha === today()).reduce((s, p) => s + (p.total || 0), 0)
-  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 200, alignItems: 'flex-end', justifyContent: 'center', padding: 0 }
-  const mbox = (wide?: boolean): React.CSSProperties => ({ background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: '12px 12px 0 0', padding: 22, width: '100%', maxWidth: wide ? 800 : 520, maxHeight: '90vh', overflowY: 'auto' })
+  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: '16px' }
+  const mbox = (wide?: boolean): React.CSSProperties => ({ background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: 12, padding: 22, width: '100%', maxWidth: wide ? 800 : 520, maxHeight: '88vh', overflowY: 'auto', boxSizing: 'border-box' as const })
 
   return (
     <div>
@@ -146,7 +146,9 @@ export function PedidosClient() {
               <div style={{ fontSize: 16, color: 'var(--gold)', marginBottom: 10 }}>{fmt(p.total || 0)}</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => { setDetalle(p); setModal('detalle') }} style={{ ...b(), flex: 1 }}>Ver</button>
-                <button onClick={() => avanzar(p.id, p.estado)} style={{ ...b(), flex: 1 }}>→ Avanzar</button>
+                <button onClick={() => avanzar(p.id, p.estado)} style={{ ...b('gold'), flex: 1 }}>
+                {p.estado==='recibido'?'▶ Preparar':p.estado==='preparando'?'✓ Listo':p.estado==='listo'?'📦 Entregar':p.estado==='entregado'?'💰 Cobrar':'Avanzar'}
+              </button>
               </div>
             </div>
           ))}
@@ -167,7 +169,9 @@ export function PedidosClient() {
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--gold)' }}>{fmt(p.total || 0)}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{badgeEstado(p.estado)}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{p.cobrado ? <span style={{ color: '#4caf7d', fontSize: 12 }}>✓</span> : <span style={{ color: '#d95f5f', fontSize: 12 }}>Pend.</span>}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><div style={{ display: 'flex', gap: 4 }}><button onClick={() => { setDetalle(p); setModal('detalle') }} style={{ ...b(), padding: '4px 8px', fontSize: 11 }}>Ver</button><button onClick={() => avanzar(p.id, p.estado)} style={{ ...b(), padding: '4px 8px', fontSize: 11 }}>→</button></div></td>
+                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><div style={{ display: 'flex', gap: 4 }}><button onClick={() => { setDetalle(p); setModal('detalle') }} style={{ ...b(), padding: '4px 8px', fontSize: 11 }}>Ver</button><button onClick={() => avanzar(p.id, p.estado)} style={{ padding:'4px 8px', fontSize:10, borderRadius:6, cursor:'pointer', fontFamily:'Georgia,serif', border:'1px solid rgba(201,162,39,.3)', background:'rgba(201,162,39,.1)', color:'var(--gold)' }}>
+                        {p.estado==='recibido'?'Preparar':p.estado==='preparando'?'Listo':p.estado==='listo'?'Entregar':p.estado==='entregado'?'Cobrar':'→'}
+                      </button></div></td>
                 </tr>
               ))}
           </tbody>

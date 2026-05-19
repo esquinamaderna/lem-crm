@@ -56,11 +56,11 @@ export function Topbar() {
       <header style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px', height: 50, background: '#171717', borderBottom: '1px solid #8a6d15', position: 'sticky', top: 0, zIndex: 100 }}>
         {/* Logo */}
         <div className="topbar-logo" style={{ fontSize: 12, letterSpacing: 2, color: '#c9a227', textTransform: 'uppercase', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          La Esquina <small style={{ color: '#7a776f', fontSize: 10, marginLeft: 4, letterSpacing: 1 }}>CRM</small>
+          <span className="logo-text">La Esquina</span> <small style={{ color: '#7a776f', fontSize: 10, marginLeft: 4, letterSpacing: 1 }}>CRM</small>
         </div>
 
         {/* Desktop nav */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, overflowX: 'auto' }} className="hide-mobile">
+        <nav className="hide-mobile topbar-nav" style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, overflowX: 'auto', minWidth: 0 }}>
           {NAV_TRANSACCIONES.map(({ href, label }) => (
             <Link key={href} href={href} style={navStyle(path === href || path.startsWith(href + '/'))}>
               {label}
@@ -120,6 +120,10 @@ export function Topbar() {
       )}
 
       <style>{`
+        .logo-text { white-space: nowrap; }
+        @media (max-width: 1100px) and (min-width: 769px) {
+          .logo-text { display: none; }
+        }
         .hide-mobile { display: flex !important; }
         .show-mobile { display: none !important; }
         @media (max-width: 768px) {

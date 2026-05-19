@@ -85,8 +85,8 @@ export function VentasClient() {
     a.click()
   }
 
-  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 200, alignItems: 'flex-end', justifyContent: 'center' }
-  const mbox: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: '12px 12px 0 0', padding: 22, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }
+  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: '16px' }
+  const mbox: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: 12, padding: 22, width: '100%', maxWidth: 560, maxHeight: '88vh', overflowY: 'auto', boxSizing: 'border-box' as const }
   const ESTADO_COLOR: Record<string, string> = { cobrada: '#4caf7d', pendiente: '#c9a227', anulada: '#d95f5f', recibido: '#7a776f', preparando: '#5b9bd5', listo: '#c9a227', entregado: '#9b72d4', cobrado: '#4caf7d', cancelado: '#d95f5f' }
 
   return (

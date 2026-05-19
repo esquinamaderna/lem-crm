@@ -8,8 +8,8 @@ import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 const CATS = ['VACUNO','CERDO','POLLO','PAPAS','JUMBALAY','PACKS']
 const b = (v?:'gold'|'red'|'green'): React.CSSProperties => ({ padding:'8px 12px',borderRadius:6,border:`1px solid ${v==='gold'?'var(--gold)':v==='red'?'rgba(217,95,95,.25)':v==='green'?'rgba(76,175,125,.25)':'var(--border)'}`,background:v==='gold'?'var(--gold)':v==='red'?'rgba(217,95,95,.12)':v==='green'?'rgba(76,175,125,.12)':'var(--card)',color:v==='gold'?'#0f0f0f':v==='red'?'#d95f5f':v==='green'?'#4caf7d':'var(--text)',cursor:'pointer',fontSize:12,fontFamily:'Georgia,serif' })
 const lbl: React.CSSProperties = { fontSize:11,color:'var(--muted)',display:'block',marginBottom:4 }
-const overlay: React.CSSProperties = { display:'flex',position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:200,alignItems:'flex-end',justifyContent:'center' }
-const mbox: React.CSSProperties = { background:'var(--card)',border:'1px solid var(--gold-d)',borderRadius:'12px 12px 0 0',padding:22,width:'100%',maxWidth:520,maxHeight:'90vh',overflowY:'auto' }
+const overlay: React.CSSProperties = { display:'flex',position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:200,alignItems:'center',justifyContent:'center',padding:'16px' }
+const mbox: React.CSSProperties = { background:'var(--card)',border:'1px solid var(--gold-d)',borderRadius:12,padding:22,width:'100%',maxWidth:520,maxHeight:'88vh',overflowY:'auto',boxSizing:'border-box' as const }
 
 export function ProductosClient() {
   const [prods, setProds] = useState<Producto[]>([])

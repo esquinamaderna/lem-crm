@@ -83,6 +83,13 @@ export function ProduccionClient() {
     setSaving(false)
   }
 
+  async function eliminarOrden(id: number, lote: string) {
+    if (!confirm(`¿Eliminar la orden ${lote}?\nEsta acción no se puede deshacer.`)) return
+    if (!confirm(`Confirmás que querés eliminar la orden ${lote}?`)) return
+    await supabase.from('ordenes_produccion').delete().eq('id', id)
+    load()
+  }
+
   async function avanzar(id: number, estadoActual: string) {
     const ci = ESTADOS.indexOf(estadoActual as typeof ESTADOS[number])
     if (ci < ESTADOS.length - 1) {
@@ -91,8 +98,8 @@ export function ProduccionClient() {
     }
   }
 
-  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 200, alignItems: 'flex-end', justifyContent: 'center' }
-  const mbox: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: '12px 12px 0 0', padding: 22, width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto' }
+  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: '16px' }
+  const mbox: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: 12, padding: 22, width: '100%', maxWidth: 640, maxHeight: '88vh', overflowY: 'auto', boxSizing: 'border-box' as const }
 
   return (
     <div>
@@ -106,7 +113,7 @@ export function ProduccionClient() {
           </select>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => router.push('/fichas')} style={b()}>Nueva desde ficha →</button>
+          <button onClick={() => router.push('/fichas')} style={b()}>+ Nueva desde ficha</button>
           <button onClick={() => { setSesionItems([]); setSesionFecha(today()); setModal('sesion') }} style={{ ...b('gold'), padding: '6px 14px', fontSize: 12 }}>+ Cargar producción del día</button>
         </div>
       </div>
@@ -130,8 +137,10 @@ export function ProduccionClient() {
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{o.etiquetas_generadas || 0}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      {o.estado !== 'completado' && <button onClick={() => avanzar(o.id, o.estado)} style={b()}>→</button>}
+                      {o.estado === 'pendiente' && <button onClick={() => avanzar(o.id, o.estado)} style={{...b('blue'), padding:'3px 8px', fontSize:10}}>Iniciar</button>}
+                      {o.estado === 'en_progreso' && <button onClick={() => avanzar(o.id, o.estado)} style={{...b('green'), padding:'3px 8px', fontSize:10}}>Completar</button>}
                       <button onClick={() => router.push('/etiquetas?orden=' + o.id)} style={b('blue')}>🏷</button>
+                      <button onClick={() => eliminarOrden(o.id, o.numero_lote)} style={{padding:'3px 7px',borderRadius:6,border:'1px solid rgba(217,95,95,.3)',background:'rgba(217,95,95,.1)',color:'#d95f5f',cursor:'pointer',fontSize:11,fontFamily:'Georgia,serif'}}>✕</button>
                     </div>
                   </td>
                 </tr>
