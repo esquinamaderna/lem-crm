@@ -68,7 +68,7 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 .badge-gray   { background: rgba(122,119,111,.12);color: #7a776f; border: 1px solid rgba(122,119,111,.25);}
 
 /* ── Responsive table → cards ── */
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
   .resp-table { display: none !important; }
   .resp-cards { display: flex !important; flex-direction: column; gap: 10px; }
 }
@@ -78,7 +78,7 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 
 /* ── Responsive grid ── */
 .grid-resp-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
   .grid-resp-2 { grid-template-columns: 1fr; gap: 10px; }
 }
 
@@ -106,13 +106,23 @@ select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 
 /* ── Fix contraste inputs fecha/color ── */
 input[type="date"],
-input[type="time"] {
+input[type="time"],
+input[type="datetime-local"] {
   color-scheme: dark;
-  color: var(--text);
+  color: var(--text) !important;
+  background: var(--surface) !important;
+  min-width: 140px;
 }
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.7);
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.6) sepia(0.3) saturate(2) hue-rotate(5deg);
   cursor: pointer;
+  opacity: 0.8;
+}
+/* iOS fix: muestra texto cuando está vacío */
+input[type="date"]:not([value]),
+input[type="date"][value=""] {
+  color: var(--muted) !important;
 }
 
 /* ── Fix topbar overflow ── */
@@ -122,4 +132,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     scrollbar-width: none;
   }
   .topbar-nav::-webkit-scrollbar { display: none; }
+}
+
+/* ── Fichas responsive ── */
+.fichas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 1024px) {
+  .fichas-grid { grid-template-columns: 1fr !important; }
 }

@@ -169,7 +169,7 @@ export function POSClient() {
         .pos-fab { display: none; }
         .pos-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; overflow-x: auto; padding-bottom: 2px; }
         .prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
           .pos-layout { grid-template-columns: 1fr; height: auto; }
           .pos-sidebar { display: none; }
           .pos-fab { display: flex !important; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 80; min-width: 220px; }

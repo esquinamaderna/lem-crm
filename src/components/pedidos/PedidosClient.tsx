@@ -112,7 +112,7 @@ export function PedidosClient() {
 
   return (
     <div>
-      <style>{`.ped-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:640px){.ped-grid{grid-template-columns:1fr}}`}</style>
+      <style>{`.ped-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}`}</style>
 
       {/* Métricas */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 10, marginBottom: 16 }}>

@@ -119,7 +119,7 @@ function EtiquetasInner() {
     : ''
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+    <div className='fichas-grid'>
       <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
         <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>Generador de Etiquetas</div>
 
@@ -153,7 +153,7 @@ function EtiquetasInner() {
           </select>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 10 }}>
           <div><label style={lbl}>Fecha producción</label><input type="date" value={fprod} onChange={e => setFprod(e.target.value)} /></div>
           <div><label style={lbl}>Lote</label><input value={lote} onChange={e => setLote(e.target.value)} placeholder="L001" /></div>
           <div><label style={lbl}>Peso / Cantidad</label><input value={peso} onChange={e => setPeso(e.target.value)} placeholder="500 g" /></div>

@@ -60,7 +60,7 @@ export function ProductosClient() {
 
   return (
     <div>
-      <style>{`.pg{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:640px){.pg{grid-template-columns:1fr}}`}</style>
+      <style>{`.pg{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}`}</style>
 
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:10,marginBottom:16}}>
         {[['Productos',prods.length,''],['Stock bajo',prods.filter(p=>p.stock_kg<2).length,'#d95f5f'],['Valor stock',fmt(prods.reduce((s,p)=>s+p.precio_venta*p.stock_kg,0)),''],['FC prom.',(prods.length?`${(prods.reduce((s,p)=>s+p.costo/p.precio_venta,0)/prods.length*100).toFixed(0)}%`:'—'),'']].map(([l,v,c])=>(

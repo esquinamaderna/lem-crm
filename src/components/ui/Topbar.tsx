@@ -60,18 +60,24 @@ export function Topbar() {
         </div>
 
         {/* Desktop nav */}
-        <nav className="hide-mobile topbar-nav" style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, overflowX: 'auto', minWidth: 0 }}>
-          {NAV_TRANSACCIONES.map(({ href, label }) => (
-            <Link key={href} href={href} style={navStyle(path === href || path.startsWith(href + '/'))}>
-              {label}
-            </Link>
-          ))}
-          <span className="topbar-sep" style={{ color: '#2e2e2e', padding: '0 6px', fontSize: 16, flexShrink: 0 }}>·</span>
-          {NAV_OPERACIONES.map(({ href, label }) => (
-            <Link key={href} href={href} style={navStyle(path === href || path.startsWith(href + '/'))}>
-              {label}
-            </Link>
-          ))}
+        <nav className="hide-mobile topbar-nav" style={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+          {NAV_TRANSACCIONES.map(({ href, label }) => {
+            const active = path === href || path.startsWith(href + '/')
+            return (
+              <Link key={href} href={href} className="tn" style={{ background: active ? 'rgba(201,162,39,.08)' : 'none', border: active ? '1px solid #8a6d15' : '1px solid transparent', color: active ? '#c9a227' : '#7a776f', borderRadius: 4, textTransform: 'uppercase' as const, textDecoration: 'none', fontFamily: 'Georgia, serif', display: 'block' }}>
+                {label}
+              </Link>
+            )
+          })}
+          <span className="topbar-sep" style={{ color: '#2e2e2e', padding: '0 4px', fontSize: 14, flexShrink: 0 }}>·</span>
+          {NAV_OPERACIONES.map(({ href, label }) => {
+            const active = path === href || path.startsWith(href + '/')
+            return (
+              <Link key={href} href={href} className="tn" style={{ background: active ? 'rgba(201,162,39,.08)' : 'none', border: active ? '1px solid #8a6d15' : '1px solid transparent', color: active ? '#c9a227' : '#7a776f', borderRadius: 4, textTransform: 'uppercase' as const, textDecoration: 'none', fontFamily: 'Georgia, serif', display: 'block' }}>
+                {label}
+              </Link>
+            )
+          })}
         </nav>
 
         {/* Spacer desktop */}
@@ -122,29 +128,22 @@ export function Topbar() {
       <style>{`
         .hide-mobile { display: flex !important; }
         .show-mobile { display: none !important; }
-        @media (max-width: 768px) {
-          .hide-mobile { display: none !important; }
-          .show-mobile { display: flex !important; }
-        }
-        /* Nav compacto en pantallas medianas */
-        @media (max-width: 1200px) and (min-width: 769px) {
-          .topbar-nav a {
-            padding: 4px 7px !important;
-            font-size: 10px !important;
-            letter-spacing: 0.5px !important;
-          }
-          .topbar-sep { padding: 0 3px !important; }
+        .tn { padding: 5px 10px; font-size: 11px; letter-spacing: 0.8px; white-space: nowrap; flex-shrink: 0; }
+        @media (max-width: 1280px) and (min-width: 1025px) {
+          .tn { padding: 5px 8px !important; font-size: 10px !important; letter-spacing: 0.4px !important; }
+          .topbar-sep { padding: 0 2px !important; font-size: 12px !important; }
           .topbar-logo-full { display: none !important; }
           .topbar-logo-short { display: inline !important; }
         }
-        @media (min-width: 769px) {
-          .topbar-nav {
-            overflow-x: auto;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-          }
-          .topbar-nav::-webkit-scrollbar { display: none; }
+        @media (max-width: 900px) and (min-width: 1025px) {
+          .tn { padding: 4px 6px !important; font-size: 9px !important; letter-spacing: 0 !important; }
         }
+        @media (max-width: 1024px) {
+          .hide-mobile { display: none !important; }
+          .show-mobile { display: flex !important; }
+        }
+        .topbar-nav { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+        .topbar-nav::-webkit-scrollbar { display: none; }
       `}</style>
     </>
   )

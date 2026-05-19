@@ -108,7 +108,7 @@ export function VentasClient() {
       </div>
 
       {/* Filtros y tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8, paddingTop: 20 }}>
         <div style={{ display: 'flex', gap: 6 }}>
           {(['todas', 'ventas', 'pedidos'] as TabType[]).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${tab === t ? 'var(--gold)' : 'var(--border)'}`, background: tab === t ? 'var(--gold-bg)' : 'var(--card)', color: tab === t ? 'var(--gold)' : 'var(--muted)', cursor: 'pointer', fontSize: 11, fontFamily: 'Georgia,serif' }}>
@@ -116,10 +116,16 @@ export function VentasClient() {
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input type="date" value={desde} onChange={e => setDesde(e.target.value)} style={{ width: 135 }} />
-          <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} style={{ width: 135 }} />
-          <button onClick={exportCSV} style={b()}>⬇ CSV</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 3 }}>Desde</div>
+            <input type="date" value={desde} onChange={e => setDesde(e.target.value)} style={{ width: 145 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 3 }}>Hasta</div>
+            <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} style={{ width: 145 }} />
+          </div>
+          <button onClick={exportCSV} style={{ ...b(), alignSelf: 'flex-end' }}>⬇ CSV</button>
         </div>
       </div>
 

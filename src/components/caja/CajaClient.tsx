@@ -94,7 +94,7 @@ export function CajaClient() {
         ))}
       </div>
 
-      <div className='grid-resp-2' style={{ display: 'grid', gap: 14 }}>
+      <div className='fichas-grid'>
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
           <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>Nuevo movimiento</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>

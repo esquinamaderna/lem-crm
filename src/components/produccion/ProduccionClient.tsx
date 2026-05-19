@@ -154,7 +154,7 @@ export function ProduccionClient() {
         <div style={overlay} onClick={e => { if (e.target === e.currentTarget) setModal(null) }}>
           <div style={mbox}>
             <div style={{ fontSize: 13, letterSpacing: 1, color: 'var(--gold)', marginBottom: 16, textTransform: 'uppercase' }}>Cargar Producción del Día</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 14 }}>
               <div><label style={lbl}>Fecha de producción</label><input type="date" value={sesionFecha} onChange={e => setSesionFecha(e.target.value)} /></div>
               <div><label style={lbl}>Responsable</label><input value={sesionResp} onChange={e => setSesionResp(e.target.value)} placeholder="Nombre" /></div>
             </div>
