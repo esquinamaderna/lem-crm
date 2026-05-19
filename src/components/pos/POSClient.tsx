@@ -106,7 +106,28 @@ export function POSClient() {
       {/* Grilla */}
       <div style={{ overflowY: 'auto' }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-          {CATS.map(c => <button key={c} onClick={() => setCat(c)} style={{ padding: '4px 11px', borderRadius: 20, border: `1px solid ${c === cat ? 'var(--gold)' : 'var(--border)'}`, background: c === cat ? 'var(--gold-bg)' : 'var(--card)', color: c === cat ? 'var(--gold)' : 'var(--muted)', cursor: 'pointer', fontSize: 11, fontFamily: 'Georgia,serif' }}>{c}</button>)}
+          {CATS.map(c => {
+            const color = CAT_COLOR[c]
+            const isActive = c === cat
+            const isTodos = c === 'Todos'
+            return (
+              <button key={c} onClick={() => setCat(c)} style={{
+                padding: '4px 13px', borderRadius: 20, cursor: 'pointer',
+                fontSize: 11, fontFamily: 'Georgia,serif', transition: 'all .15s',
+                border: isActive
+                  ? `1px solid ${isTodos ? 'var(--gold)' : color}`
+                  : `1px solid ${isTodos ? 'var(--border)' : color + '55'}`,
+                background: isActive
+                  ? isTodos ? 'var(--gold-bg)' : color + '22'
+                  : 'var(--card)',
+                color: isActive
+                  ? isTodos ? 'var(--gold)' : color
+                  : isTodos ? 'var(--muted)' : color + '99',
+              }}>
+                {c}
+              </button>
+            )
+          })}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 8 }}>
           {filtered.map(p => {
