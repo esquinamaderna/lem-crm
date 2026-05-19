@@ -24,10 +24,11 @@ body {
   color: var(--text);
   font-family: 'Georgia', serif;
   font-size: 14px;
+  -webkit-text-size-adjust: 100%;
 }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
@@ -37,16 +38,18 @@ input, select, textarea {
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 6px;
-  padding: 7px 10px;
-  font-size: 13px;
+  padding: 8px 10px;
+  font-size: 14px;
   font-family: 'Georgia', serif;
   width: 100%;
   transition: border-color 0.15s;
+  -webkit-appearance: none;
 }
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--gold-d);
 }
+select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a776f' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
 
 /* ── Category badges ── */
 .cat-vacuno  { background: rgba(192,57,43,.15);  color: #e57368; border: 1px solid rgba(192,57,43,.3); }
@@ -64,15 +67,39 @@ input:focus, select:focus, textarea:focus {
 .badge-purple { background: rgba(155,114,212,.12);color: #9b72d4; border: 1px solid rgba(155,114,212,.25);}
 .badge-gray   { background: rgba(122,119,111,.12);color: #7a776f; border: 1px solid rgba(122,119,111,.25);}
 
+/* ── Responsive table → cards ── */
+@media (max-width: 640px) {
+  .resp-table { display: none !important; }
+  .resp-cards { display: flex !important; flex-direction: column; gap: 10px; }
+}
+@media (min-width: 641px) {
+  .resp-cards { display: none !important; }
+}
+
+/* ── Responsive grid ── */
+.grid-resp-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 640px) {
+  .grid-resp-2 { grid-template-columns: 1fr; gap: 10px; }
+}
+
 /* ── Print ── */
 @media print {
   body * { display: none !important; }
   #print-area, #print-area * { display: block !important; }
-  #print-area {
-    color: #000;
-    background: #fff;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    padding: 4mm;
-  }
+  #print-area { color: #000; background: #fff; font-family: 'Courier New', monospace; font-size: 12px; padding: 4mm; }
 }
+
+/* ── Mobile nav ── */
+@media (max-width: 768px) {
+  .topbar-logo small { display: none; }
+}
+
+/* ── Cart drawer overlay ── */
+.cart-drawer-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 90;
+}
+.cart-drawer-overlay.open { display: block; }

@@ -85,12 +85,13 @@ export function VentasClient() {
     a.click()
   }
 
-  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.82)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: 16 }
-  const mbox: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: 12, padding: 22, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }
+  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 200, alignItems: 'flex-end', justifyContent: 'center' }
+  const mbox: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: '12px 12px 0 0', padding: 22, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }
   const ESTADO_COLOR: Record<string, string> = { cobrada: '#4caf7d', pendiente: '#c9a227', anulada: '#d95f5f', recibido: '#7a776f', preparando: '#5b9bd5', listo: '#c9a227', entregado: '#9b72d4', cobrado: '#4caf7d', cancelado: '#d95f5f' }
 
   return (
     <div>
+      <style>{`.resp-table{display:block}@media(max-width:640px){.resp-table{display:none!important}.resp-cards{display:flex!important}}`}</style>
       {/* Métricas */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, marginBottom: 16 }}>
         {[
@@ -124,7 +125,7 @@ export function VentasClient() {
 
       {/* VENTAS */}
       {(tab === 'todas' || tab === 'ventas') && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14, overflowX: 'auto' }}>
           <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 10 }}>Ventas — Mostrador</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr>{['Ticket', 'Fecha', 'Cliente', 'Pago', 'Total', 'Estado', ''].map(h => <th key={h} style={{ fontSize: 10, letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'left', padding: '7px 10px', borderBottom: '1px solid var(--border)' }}>{h}</th>)}</tr></thead>
@@ -156,7 +157,7 @@ export function VentasClient() {
 
       {/* PEDIDOS */}
       {(tab === 'todas' || tab === 'pedidos') && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, overflowX: 'auto' }}>
           <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 10 }}>Pedidos — Canales</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr>{['#', 'Fecha', 'Cliente', 'Canal', 'Total', 'Estado', 'Cobrado', ''].map(h => <th key={h} style={{ fontSize: 10, letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'left', padding: '7px 10px', borderBottom: '1px solid var(--border)' }}>{h}</th>)}</tr></thead>

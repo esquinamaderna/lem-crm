@@ -91,8 +91,8 @@ export function ProduccionClient() {
     }
   }
 
-  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.82)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: 16 }
-  const mbox: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: 12, padding: 22, width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto' }
+  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 200, alignItems: 'flex-end', justifyContent: 'center' }
+  const mbox: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: '12px 12px 0 0', padding: 22, width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto' }
 
   return (
     <div>
