@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 const NAV_TRANSACCIONES = [
+  { href: '/dashboard', label: 'Dashboard' },
   { href: '/pos',     label: 'Venta' },
   { href: '/pedidos', label: 'Pedidos' },
   { href: '/ventas',  label: 'Historial' },
