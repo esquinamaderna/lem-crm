@@ -6,26 +6,27 @@ import type { Producto } from '@/types/database'
 import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 import { useRouter } from 'next/navigation'
 
-// ──────────────────────────────────────────────────────────────────
-// RECETAS STANDARD — extraídas de RECETAS_STANDARD.xlsx
-// Cada receta está definida por 1 kg de PRODUCTO TERMINADO.
-// La calculadora parte de los kg de PROTEÍNA disponible.
-// ──────────────────────────────────────────────────────────────────
-interface Ingrediente { nombre: string; qty: number; unidad: 'kg' | 'lts' | 'u'; precio: number }
+// ── Redondeo al múltiplo de 500 más cercano ──
+function round500(n: number): number {
+  return Math.round(n / 500) * 500
+}
+
+// ── Recetas con costos base por ingrediente ──
+interface Ing { nombre: string; qty: number; unidad: 'kg' | 'lts' | 'u'; precio: number }
 interface Receta {
-  proteina: string           // ingrediente principal (punto de partida)
-  proteinaPorKgProducto: number   // kg proteína por 1 kg producto terminado
-  merma: number              // factor ej: 0.05 = 5%
-  costoBase: number          // costo por kg terminado según planilla
+  proteina: string
+  proteinaPorKgProducto: number
+  merma: number
+  costoBase: number
   rendimiento: string
-  ingredientes: Ingrediente[]
+  ingredientes: Ing[]
   pasos: string[]
 }
 
-const RECETAS: Record<string, Receta> = {
+const RECETAS_BASE: Record<string, Receta> = {
   'Milanesa de Pollo s/provenzal': {
     proteina: 'Pechuga de pollo', proteinaPorKgProducto: 0.5, merma: 0.05, costoBase: 5310.56,
-    rendimiento: 'Costo planilla: $5.311/kg terminado · Merma 5%',
+    rendimiento: 'Costo planilla $5.311/kg · Merma 5%',
     ingredientes: [
       { nombre: 'Pechuga de pollo', qty: 0.5, unidad: 'kg', precio: 6700 },
       { nombre: 'Pan rallado', qty: 0.2765, unidad: 'kg', precio: 1696 },
@@ -38,11 +39,11 @@ const RECETAS: Record<string, Receta> = {
       { nombre: 'Harina 0000', qty: 0.04, unidad: 'kg', precio: 870 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Mise en place: descongelar pechuga, preparar baño huevo+mostaza+sal+pimienta y pan rallado+crunch', 'Filetear: cortes parejos 8–10 mm, descartar bordes irregulares', 'Empanado: (1) baño húmedo → (2) mezcla pan+crunch. Presionar. NO humedecer en exceso', 'Control: grosor uniforme del rebozado, sin huecos ni exceso de pan', 'Envasar al vacío en rollo gofrado. Etiquetar: producto, fecha, vencimiento, lote', 'Congelar plano a −18°C. No apilar hasta congelación completa (~4 hs)'],
+    pasos: ['Mise en place: baño huevo+mostaza+sal+pimienta y pan rallado+crunch', 'Filetear: cortes parejos 8–10 mm', 'Empanado: (1) baño húmedo → (2) mezcla pan+crunch. Presionar', 'Envasar al vacío. Etiquetar con fecha y lote', 'Congelar plano −18°C (~4 hs sin apilar)'],
   },
   'Milanesa de Pollo c/provenzal': {
     proteina: 'Pechuga de pollo', proteinaPorKgProducto: 0.5, merma: 0.05, costoBase: 6160.98,
-    rendimiento: 'Costo planilla: $6.161/kg terminado · Merma 5%',
+    rendimiento: 'Costo planilla $6.161/kg · Merma 5%',
     ingredientes: [
       { nombre: 'Pechuga de pollo', qty: 0.5, unidad: 'kg', precio: 6700 },
       { nombre: 'Pan rallado', qty: 0.2765, unidad: 'kg', precio: 1696 },
@@ -57,11 +58,11 @@ const RECETAS: Record<string, Receta> = {
       { nombre: 'Harina 0000', qty: 0.04, unidad: 'kg', precio: 870 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Mise en place: igual que sin provenzal. Mezclar perejil + ajo en polvo al pan rallado antes de comenzar', 'Filetear: 8–10 mm. Mantener uniformidad', 'Empanado: (1) baño húmedo → (2) mezcla pan+provenzal. Verificar cobertura aromática pareja', 'Control: color del rebozado levemente más oscuro, aroma a provenzal uniforme', 'Envasar al vacío. Etiquetar diferenciando de versión sin provenzal'],
+    pasos: ['Mezclar perejil + ajo en polvo al pan rallado antes de comenzar', 'Filetear 8–10 mm', 'Empanado: (1) baño → (2) mezcla pan+provenzal', 'Envasar diferenciando de versión sin provenzal'],
   },
   'Milanesa de Nalga UG': {
     proteina: 'Nalga (fileteada)', proteinaPorKgProducto: 0.5, merma: 0.05, costoBase: 14543.90,
-    rendimiento: 'Costo planilla: $14.544/kg terminado · Merma 5%',
+    rendimiento: 'Costo planilla $14.544/kg · Merma 5%',
     ingredientes: [
       { nombre: 'Nalga (fileteada)', qty: 0.5, unidad: 'kg', precio: 24000 },
       { nombre: 'Pan rallado', qty: 0.2765, unidad: 'kg', precio: 1696 },
@@ -74,11 +75,11 @@ const RECETAS: Record<string, Receta> = {
       { nombre: 'Condimento provenzal', qty: 0.005, unidad: 'kg', precio: 17700 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Selección: nalga UG, color rojo intenso, sin manchas grises. Conservar en frío hasta fileteo', 'Filetear: 8–10 mm siguiendo fibra muscular. Piezas grandes y uniformes — diferenciador premium', 'Baño húmedo: huevo + leche + sal + pimienta + ajo. Sumergir 5 min', 'Empanado doble: (1) baño → (2) pan. Repetir: (3) baño → (4) pan', 'Reposo 10 min en frío antes de envasar — asienta el rebozado', 'Envasar individual en rollo gofrado. Etiquetar: "Nalga Unión Ganadera". Congelar plano −18°C'],
+    pasos: ['Nalga UG color rojo intenso. Filetear 8–10 mm siguiendo fibra', 'Baño húmedo 5 min. Empanado doble (×2 baño, ×2 pan)', 'Reposo 10 min en frío antes de envasar', 'Envasar individual. Congelar plano −18°C'],
   },
   'Milanesa de Peceto': {
     proteina: 'Peceto (fileteado)', proteinaPorKgProducto: 0.85, merma: 0.05, costoBase: 11560.70,
-    rendimiento: 'Costo planilla: $11.561/kg terminado · Merma 5%',
+    rendimiento: 'Costo planilla $11.561/kg · Merma 5%',
     ingredientes: [
       { nombre: 'Peceto (fileteado)', qty: 0.85, unidad: 'kg', precio: 11699 },
       { nombre: 'Pan rallado', qty: 0.15, unidad: 'kg', precio: 1696 },
@@ -91,11 +92,11 @@ const RECETAS: Record<string, Receta> = {
       { nombre: 'Condimento provenzal', qty: 0.005, unidad: 'kg', precio: 17700 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Verificar espesor 6–8 mm. Si viene grueso, golpear suavemente con mazo sobre film', 'Baño húmedo: huevo + leche + mostaza + sal + pimienta + ajo. Sumergir 3–5 min', 'Empanado: pan rallado solo (sin crunch — mantiene textura fina del peceto)', 'Envasar al vacío. Etiquetar: "Milanesa de Peceto", fecha, lote. Congelar plano −18°C'],
+    pasos: ['Espesor 6–8 mm, golpear suavemente si viene grueso', 'Baño: huevo+leche+mostaza+sal+pimienta+ajo 3–5 min', 'Pan rallado solo (sin crunch). Congelar plano −18°C'],
   },
   'Milanesa de Carré de Cerdo': {
     proteina: 'Carré de cerdo', proteinaPorKgProducto: 0.9, merma: 0.05, costoBase: 9900,
-    rendimiento: '85% sobre carré crudo · Pack objetivo 450–500 g',
+    rendimiento: '85% sobre carré crudo · Pack 450–500 g',
     ingredientes: [
       { nombre: 'Carré de cerdo', qty: 0.9, unidad: 'kg', precio: 11000 },
       { nombre: 'Pan rallado', qty: 0.2, unidad: 'kg', precio: 1696 },
@@ -108,11 +109,11 @@ const RECETAS: Record<string, Receta> = {
       { nombre: 'Ajo en polvo', qty: 0.003, unidad: 'kg', precio: 20800 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Selección: carré magro, color rosado pálido uniforme', 'Filetear perpendicular a la fibra 8–10 mm. Tiernizar 2–3 golpes suaves con mazo', 'Baño húmedo: huevo + leche + mostaza + sal + pimienta + ajo. 5 min', 'Empanado: pan rallado + crunch. Presionar bien', 'Envasar al vacío. Congelar plano −18°C'],
+    pasos: ['Filetear perpendicular 8–10 mm. Tiernizar 2–3 golpes suaves', 'Baño: huevo+leche+mostaza+sal+pimienta+ajo 5 min', 'Pan rallado + crunch. Envasar al vacío. Congelar plano −18°C'],
   },
   'Ribs Kansas BBQ': {
     proteina: 'Ribs de cerdo', proteinaPorKgProducto: 1.0, merma: 0.05, costoBase: 6682.55,
-    rendimiento: 'Costo planilla: $6.683/kg · Porciones 3–4 costillas ~400–500 g/pack',
+    rendimiento: 'Costo planilla $6.683/kg · Porciones 3–4 costillas ~400–500 g',
     ingredientes: [
       { nombre: 'Ribs de cerdo', qty: 1.0, unidad: 'kg', precio: 5300 },
       { nombre: 'Pimentón ahumado', qty: 0.02, unidad: 'kg', precio: 24360 },
@@ -126,20 +127,20 @@ const RECETAS: Record<string, Receta> = {
       { nombre: 'Cebolla en polvo', qty: 0.005, unidad: 'kg', precio: 8900 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Preparar rub: mezclar pimentón + cayena + mostaza en polvo + clavo + canela + azúcar + sal + ajo + cebolla. RECETA PROPIETARIA', 'Aplicar rub: cubrir ribs completamente, masajear ambas caras y bordes', 'Reposo con rub: mínimo 2 hs en frío (ideal 12 hs overnight). CRÍTICO', 'Retirar membrana del lado del hueso antes del rub', 'Porcionar: 3–4 costillas, ~400–500 g. Incluir bolsita kraft con rub extra', 'Instrucciones: Horno 180°C × 45 min tapado + 15 min destapado. O airfryer 160°C × 30 min'],
+    pasos: ['Rub: pimentón+cayena+mostaza+clavo+canela+azúcar+sal+ajo+cebolla. RECETA PROPIETARIA', 'Cubrir y masajear. Reposo mínimo 2 hs (ideal 12 hs)', 'Retirar membrana del lado del hueso', 'Porcionar 3–4 costillas. Incluir bolsita rub extra', 'Horno 180°C × 45 min tapado + 15 min. O airfryer 160°C × 30 min'],
   },
   'Pechuguitas de Pollo': {
     proteina: 'Pechuga de pollo', proteinaPorKgProducto: 1.0, merma: 0.05, costoBase: 9955.31,
-    rendimiento: 'Costo planilla: $9.955/kg · Porciones 200–300 g/pieza',
+    rendimiento: 'Costo planilla $9.955/kg · Porciones 200–300 g',
     ingredientes: [
       { nombre: 'Pechuga de pollo', qty: 1.0, unidad: 'kg', precio: 9400 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Selección: pechugas enteras sin hematomas ni grasa excesiva', 'Limpieza: retirar filete interno. Limpiar grasa y nervios', 'Porcionar: dejar entera si pesa 200–300 g, cortar si supera 350 g', 'Envasar individual al vacío. Congelar plano −18°C. Vida útil: 90 días'],
+    pasos: ['Selección sin hematomas. Retirar filete interno y grasa', 'Porcionar: entera si 200–300 g, cortar si >350 g', 'Envasar individual al vacío. Congelar plano −18°C'],
   },
   'Medallones de Pollo × 12': {
     proteina: 'Recortes de pechuga', proteinaPorKgProducto: 0.9, merma: 0.01, costoBase: 7645.18,
-    rendimiento: 'Costo planilla: $7.645/pack · Peso pack 480–500 g (12 u × ~40 g)',
+    rendimiento: 'Costo planilla $7.645/pack · 480–500 g (12 u × ~40 g)',
     ingredientes: [
       { nombre: 'Recortes de pechuga', qty: 0.9, unidad: 'kg', precio: 6700 },
       { nombre: 'Pan rallado', qty: 0.2, unidad: 'kg', precio: 1696 },
@@ -149,11 +150,11 @@ const RECETAS: Record<string, Receta> = {
       { nombre: 'Pimienta negra molida', qty: 0.005, unidad: 'kg', precio: 78600 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Picar pechuga a textura de carne picada gruesa. Mezclar con mostaza + sal + pimienta', 'Porcionar ~40 g c/u. Moldear medallón 7–8 cm diámetro × 1.5 cm con aro', 'Empanado: (1) mostaza húmeda → (2) pan rallado+crunch. Presionar suavemente', 'Control: 12 medallones de peso y tamaño similares. Descartar piezas irregulares', 'Envasar en una sola capa al vacío. Etiquetar: "Medallones × 12", peso neto, fecha, lote', 'Congelar plano −18°C. No apilar hasta congelación completa'],
+    pasos: ['Picar pechuga textura gruesa. Mezclar mostaza+sal+pimienta', 'Porcionar ~40 g con aro. Empanado húmedo + pan+crunch', '12 medallones uniformes. Envasar en una capa. Congelar plano −18°C'],
   },
   'Medallones de Pollo × 6': {
     proteina: 'Recortes de pechuga', proteinaPorKgProducto: 0.55, merma: 0.01, costoBase: 4274.94,
-    rendimiento: 'Costo planilla: $4.275/pack · Peso pack 240–250 g netos',
+    rendimiento: 'Costo planilla $4.275/pack · 240–250 g netos',
     ingredientes: [
       { nombre: 'Recortes de pechuga', qty: 0.55, unidad: 'kg', precio: 6700 },
       { nombre: 'Pan rallado', qty: 0.0375, unidad: 'kg', precio: 1696 },
@@ -163,69 +164,115 @@ const RECETAS: Record<string, Receta> = {
       { nombre: 'Pimienta negra molida', qty: 0.0025, unidad: 'kg', precio: 78600 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Misma técnica que Medallones × 12 — producir en el mismo batch y separar al envasar', 'Moldear 6 medallones de ~40 g c/u', 'Envasar los 6 juntos. Etiquetar: "Medallones × 6", peso neto, fecha, lote'],
+    pasos: ['Misma técnica que ×12 — producir en el mismo batch y separar al envasar', '6 medallones de ~40 g. Etiquetar: "Medallones × 6"'],
   },
   'Caritas de Papa': {
     proteina: 'Caritas congeladas', proteinaPorKgProducto: 1.0, merma: 0, costoBase: 7525.69,
-    rendimiento: 'Costo planilla: $7.526/kg · Producto de reventa fraccionado',
+    rendimiento: 'Costo $7.526/kg · Reventa fraccionada',
     ingredientes: [
       { nombre: 'Caritas congeladas', qty: 1.0, unidad: 'kg', precio: 7444.44 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Verificar temperatura de llegada ≤ −15°C', 'Fraccionar en porciones de 500 g o 1 kg en ≤15 min fuera del frío', 'Envasar al vacío. Recongelar inmediatamente a −18°C'],
+    pasos: ['Verificar llegada ≤ −15°C. Fraccionar en ≤15 min. Recongelar −18°C'],
   },
   'Bastones de Papa': {
     proteina: 'Papas bastón congeladas', proteinaPorKgProducto: 1.0, merma: 0, costoBase: 4414.58,
-    rendimiento: 'Costo planilla: $4.415/kg · Producto de reventa fraccionado',
+    rendimiento: 'Costo $4.415/kg · Reventa fraccionada',
     ingredientes: [
       { nombre: 'Papas bastón congeladas', qty: 1.0, unidad: 'kg', precio: 4333.33 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Verificar temperatura de llegada ≤ −15°C', 'Fraccionar en ≤15 min fuera del frío', 'Envasar al vacío. Recongelar. Respetar fecha original del proveedor'],
+    pasos: ['Verificar ≤ −15°C. Fraccionar en ≤15 min. Respetar fecha proveedor. Recongelar'],
   },
   'Papas Noisette': {
     proteina: 'Papas Noisette congeladas', proteinaPorKgProducto: 1.0, merma: 0, costoBase: 7381.25,
-    rendimiento: 'Costo planilla: $7.381/kg · Producto de reventa fraccionado',
+    rendimiento: 'Costo $7.381/kg · Reventa fraccionada',
     ingredientes: [
       { nombre: 'Papas Noisette congeladas', qty: 1.0, unidad: 'kg', precio: 7300 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Verificar temperatura de llegada ≤ −15°C', 'Fraccionar en ≤15 min. No mezclar lotes de diferentes fechas', 'Envasar al vacío. Recongelar a −18°C'],
+    pasos: ['Verificar ≤ −15°C. No mezclar lotes. Fraccionar en ≤15 min. Recongelar'],
   },
   'Nuggets Crocantes': {
     proteina: 'Nuggets crocantes (Sadia)', proteinaPorKgProducto: 1.0, merma: 0, costoBase: 9281.25,
-    rendimiento: 'Costo planilla: $9.281/kg · Producto de reventa fraccionado',
+    rendimiento: 'Costo $9.281/kg · Reventa fraccionada',
     ingredientes: [
       { nombre: 'Nuggets crocantes (Sadia)', qty: 1.0, unidad: 'kg', precio: 9200 },
       { nombre: 'Film / envase unitario', qty: 1, unidad: 'u', precio: 81.25 },
     ],
-    pasos: ['Verificar temperatura de llegada ≤ −15°C', 'Evaluar: sin apelmazamiento ni rotura', 'Fraccionar 500 g o 1 kg. Máx 10 min fuera del frío', 'Envasar al vacío. Recongelar inmediatamente. NO microondas'],
+    pasos: ['Verificar ≤ −15°C. Evaluar sin apelmazamiento. Fraccionar ≤10 min. Recongelar. NO microondas'],
   },
 }
 
+// ── Calcular costo de receta con precios actualizados ──
+function calcularCosto(receta: Receta, preciosActuales: Record<string, number>): number {
+  const raw = receta.ingredientes.reduce((s, ing) => {
+    const precio = preciosActuales[ing.nombre] ?? ing.precio
+    return s + ing.qty * precio
+  }, 0)
+  return raw * (1 + receta.merma)
+}
+
+// ── Obtener todos los ingredientes únicos del sistema ──
+function getIngredientesUnicos(): Record<string, number> {
+  const mapa: Record<string, number> = {}
+  Object.values(RECETAS_BASE).forEach(r => {
+    r.ingredientes.forEach(ing => {
+      if (!mapa[ing.nombre]) mapa[ing.nombre] = ing.precio
+    })
+  })
+  return mapa
+}
+
 const lbl: React.CSSProperties = { fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 4 }
-const b = (v?: 'gold' | 'blue'): React.CSSProperties => ({
+const b = (v?: 'gold' | 'blue' | 'red'): React.CSSProperties => ({
   padding: '7px 14px', borderRadius: 6,
-  border: `1px solid ${v === 'gold' ? 'var(--gold)' : v === 'blue' ? 'rgba(30,100,180,.3)' : 'var(--border)'}`,
-  background: v === 'gold' ? 'var(--gold)' : v === 'blue' ? 'rgba(30,100,180,.08)' : 'var(--card)',
-  color: v === 'gold' ? '#fff' : v === 'blue' ? '#1050a0' : 'var(--text)',
+  border: `1px solid ${v === 'gold' ? 'var(--gold)' : v === 'blue' ? 'rgba(30,100,180,.3)' : v === 'red' ? 'rgba(190,50,50,.3)' : 'var(--border)'}`,
+  background: v === 'gold' ? 'var(--gold)' : v === 'blue' ? 'rgba(30,100,180,.08)' : v === 'red' ? 'rgba(190,50,50,.08)' : 'var(--card)',
+  color: v === 'gold' ? '#fff' : v === 'blue' ? '#1050a0' : v === 'red' ? '#aa2020' : 'var(--text)',
   cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif',
 })
+
+type TabType = 'ficha' | 'precios'
+
+interface ImpactoProducto {
+  nombre: string
+  id: number
+  costoActual: number
+  costoNuevo: number
+  pvActual: number
+  pvNuevo: number
+  pvNuevoRedondeado: number
+  fc: number
+}
 
 export function FichasClient() {
   const [prods, setProds] = useState<Producto[]>([])
   const [sel, setSel] = useState<number | ''>('')
   const [kgProteina, setKgProteina] = useState('5')
+  const [tab, setTab] = useState<TabType>('ficha')
+
+  // Edición producto
   const [editMode, setEditMode] = useState(false)
   const [epv, setEpv] = useState(''); const [ecosto, setEcosto] = useState('')
   const [estock, setEstock] = useState(''); const [evida, setEvida] = useState('')
   const [einst, setEinst] = useState('')
   const [saving, setSaving] = useState(false)
+
   // Producción
   const [pfCant, setPfCant] = useState('5'); const [pfFecha, setPfFecha] = useState(today())
   const [pfLote, setPfLote] = useState(''); const [pfResp, setPfResp] = useState('')
   const [pfNotas, setPfNotas] = useState('')
   const [savingOrden, setSavingOrden] = useState(false)
+
+  // Precios ingredientes
+  const [preciosActuales, setPreciosActuales] = useState<Record<string, number>>(getIngredientesUnicos)
+  const [preciosEditados, setPreciosEditados] = useState<Record<string, number>>({})
+  const [impacto, setImpacto] = useState<ImpactoProducto[]>([])
+  const [showImpacto, setShowImpacto] = useState(false)
+  const [applyingPrecios, setApplyingPrecios] = useState(false)
+  const [searchIng, setSearchIng] = useState('')
+
   const router = useRouter()
 
   useEffect(() => {
@@ -236,47 +283,93 @@ export function FichasClient() {
   }, [])
 
   const prod = prods.find(p => p.id === sel)
-  const receta = prod ? RECETAS[prod.nombre] : null
+  const receta = prod ? RECETAS_BASE[prod.nombre] : null
 
-  // ── Calculadora invertida: desde kg proteína → kg producto terminado ──
   const kgProt = parseFloat(kgProteina) || 0
   const kgProducto = receta && kgProt > 0 ? parseFloat((kgProt / receta.proteinaPorKgProducto).toFixed(3)) : 0
-  const factor = kgProducto // escala sobre la receta base (1 kg producto)
-
-  const costoCalculado = receta && factor > 0
-    ? receta.ingredientes.reduce((s, ing) => {
-        const cantReal = ing.unidad === 'u' ? Math.ceil(ing.qty * factor) : ing.qty * factor
-        return s + cantReal * ing.precio
-      }, 0) * (1 + receta.merma)
-    : 0
-
+  const factor = kgProducto
+  const costoCalculado = receta && factor > 0 ? calcularCosto(receta, { ...preciosActuales, ...preciosEditados }) * factor : 0
   const venceISO = prod && pfFecha ? dateAddISO(pfFecha, prod.vida_util_dias) : ''
 
-  // Abrir modo edición
-  function abrirEdicion() {
-    if (!prod) return
-    setEpv(String(prod.precio_venta))
-    setEcosto(String(prod.costo))
-    setEstock(String(prod.stock_kg))
-    setEvida(String(prod.vida_util_dias))
-    setEinst(prod.instrucciones || '')
-    setEditMode(true)
+  // ── Calcular impacto de cambios de precio ──
+  function calcularImpacto() {
+    const preciosMergeados = { ...preciosActuales, ...preciosEditados }
+    const resultado: ImpactoProducto[] = []
+
+    Object.entries(RECETAS_BASE).forEach(([nombreReceta, receta]) => {
+      const producto = prods.find(p => p.nombre === nombreReceta)
+      if (!producto) return
+
+      // Ver si algún ingrediente editado aparece en esta receta
+      const afectado = receta.ingredientes.some(ing => ing.nombre in preciosEditados)
+      if (!afectado) return
+
+      const costoActual = calcularCosto(receta, preciosActuales)
+      const costoNuevo = calcularCosto(receta, preciosMergeados)
+      const fc = producto.costo / producto.precio_venta // mantener el FC%
+      const pvNuevo = costoNuevo / fc
+      const pvNuevoRedondeado = round500(pvNuevo)
+
+      resultado.push({
+        nombre: nombreReceta,
+        id: producto.id,
+        costoActual,
+        costoNuevo,
+        pvActual: producto.precio_venta,
+        pvNuevo,
+        pvNuevoRedondeado,
+        fc,
+      })
+    })
+
+    setImpacto(resultado)
+    setShowImpacto(true)
   }
 
+  // ── Aplicar cambios de precio en Supabase ──
+  async function aplicarCambios() {
+    setApplyingPrecios(true)
+    try {
+      // Actualizar precios de ingredientes en memoria
+      const nuevosPreciosActuales = { ...preciosActuales, ...preciosEditados }
+      setPreciosActuales(nuevosPreciosActuales)
+
+      // Actualizar cada producto afectado en Supabase
+      for (const item of impacto) {
+        await supabase.from('productos').update({
+          costo: item.costoNuevo,
+          precio_venta: item.pvNuevoRedondeado,
+        }).eq('id', item.id)
+      }
+
+      // Actualizar estado local
+      setProds(prev => prev.map(p => {
+        const item = impacto.find(i => i.id === p.id)
+        if (item) return { ...p, costo: item.costoNuevo, precio_venta: item.pvNuevoRedondeado }
+        return p
+      }))
+
+      setPreciosEditados({})
+      setShowImpacto(false)
+      alert(`✓ Precios actualizados: ${impacto.length} producto${impacto.length !== 1 ? 's' : ''} actualizado${impacto.length !== 1 ? 's' : ''}`)
+    } catch (e) { console.error(e); alert('Error al aplicar cambios') }
+    setApplyingPrecios(false)
+  }
+
+  // Edición producto
+  function abrirEdicion() {
+    if (!prod) return
+    setEpv(String(prod.precio_venta)); setEcosto(String(prod.costo))
+    setEstock(String(prod.stock_kg)); setEvida(String(prod.vida_util_dias))
+    setEinst(prod.instrucciones || ''); setEditMode(true)
+  }
   async function guardarEdicion() {
     if (!prod) return
     setSaving(true)
-    const updates = {
-      precio_venta: parseFloat(epv),
-      costo: parseFloat(ecosto),
-      stock_kg: parseFloat(estock),
-      vida_util_dias: parseInt(evida),
-      instrucciones: einst,
-    }
+    const updates = { precio_venta: parseFloat(epv), costo: parseFloat(ecosto), stock_kg: parseFloat(estock), vida_util_dias: parseInt(evida), instrucciones: einst }
     await supabase.from('productos').update(updates).eq('id', prod.id)
     setProds(prev => prev.map(p => p.id === prod.id ? { ...p, ...updates } : p))
-    setEditMode(false)
-    setSaving(false)
+    setEditMode(false); setSaving(false)
   }
 
   async function crearOrden() {
@@ -291,203 +384,341 @@ export function FichasClient() {
         estado: 'pendiente', responsable: pfResp, notas: pfNotas, etiquetas_generadas: 0,
       }).select().single()
       if (data) router.push('/etiquetas?orden=' + data.id)
-    } catch (e) { console.error(e); alert('Error al crear la orden') }
+    } catch (e) { console.error(e) }
     setSavingOrden(false)
   }
 
+  const ingredientesLista = Object.entries(preciosActuales)
+    .filter(([nombre]) => !searchIng || nombre.toLowerCase().includes(searchIng.toLowerCase()))
+    .sort((a, b) => a[0].localeCompare(b[0]))
+
+  const tieneEdiciones = Object.keys(preciosEditados).length > 0
+
   return (
-    <div className="fichas-grid">
+    <div>
+      {/* ── Tabs ── */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+        {[['ficha', '📋 Fichas técnicas'], ['precios', '💰 Actualizar precios de ingredientes']].map(([t, label]) => (
+          <button key={t} onClick={() => setTab(t as TabType)} style={{
+            padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif',
+            border: tab === t ? '1px solid var(--gold)' : '1px solid var(--border)',
+            background: tab === t ? 'var(--gold-bg)' : 'var(--card)',
+            color: tab === t ? 'var(--gold)' : 'var(--muted)',
+          }}>{label}</button>
+        ))}
+      </div>
 
-      {/* ── Panel izquierdo: Selector + Ficha + Calculadora ── */}
-      <div>
-        <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>Fichas Técnicas</div>
-
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 12, boxShadow: 'var(--shadow)' }}>
-          <select value={sel} onChange={e => { setSel(e.target.value ? parseInt(e.target.value) : ''); setEditMode(false) }} style={{ width: '100%' }}>
-            <option value="">— Seleccionar producto —</option>
-            {prods.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
-        </div>
-
-        {prod && (
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)' }}>
-
-            {/* Header producto + botón editar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)' }}>{prod.nombre}</div>
-              <button onClick={editMode ? guardarEdicion : abrirEdicion} disabled={saving}
-                style={{ ...b(editMode ? 'gold' : undefined), padding: '4px 10px', fontSize: 11 }}>
-                {saving ? 'Guardando...' : editMode ? '✓ Guardar cambios' : '✏ Editar producto'}
-              </button>
+      {/* ══════════════════════════════ TAB: FICHAS ══════════════════════════════ */}
+      {tab === 'ficha' && (
+        <div className="fichas-grid">
+          {/* Panel izquierdo */}
+          <div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 12, boxShadow: 'var(--shadow)' }}>
+              <select value={sel} onChange={e => { setSel(e.target.value ? parseInt(e.target.value) : ''); setEditMode(false) }} style={{ width: '100%' }}>
+                <option value="">— Seleccionar producto —</option>
+                {prods.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
             </div>
 
-            {/* Modo visualización */}
-            {!editMode ? (
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, marginBottom: 12 }}>
-                <span>PV: <strong style={{ color: 'var(--gold)' }}>{fmt(prod.precio_venta)}/kg</strong></span>
-                <span>Costo: <strong>{fmt(prod.costo)}/kg</strong></span>
-                <span>FC: <strong>{(prod.costo / prod.precio_venta * 100).toFixed(0)}%</strong></span>
-                <span>Margen: <strong>{fmt(prod.precio_venta - prod.costo)}/kg</strong></span>
-                <span>Stock: <strong style={{ color: prod.stock_kg < 2 ? '#aa2020' : prod.stock_kg < 5 ? '#a85010' : '#1a7a40' }}>{fmtN(prod.stock_kg)} kg</strong></span>
-                <span>Vida útil: <strong>{prod.vida_util_dias} días</strong></span>
-              </div>
-            ) : (
-              /* Modo edición */
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 10, marginBottom: 10 }}>
-                  <div><label style={lbl}>PV ($/kg)</label><input type="number" value={epv} onChange={e => setEpv(e.target.value)} /></div>
-                  <div><label style={lbl}>Costo ($/kg)</label><input type="number" value={ecosto} onChange={e => setEcosto(e.target.value)} /></div>
-                  <div><label style={lbl}>Stock (kg)</label><input type="number" value={estock} onChange={e => setEstock(e.target.value)} /></div>
-                  <div><label style={lbl}>Vida útil (días)</label><input type="number" value={evida} onChange={e => setEvida(e.target.value)} /></div>
-                </div>
-                <div><label style={lbl}>Instrucciones de cocción</label><textarea value={einst} onChange={e => setEinst(e.target.value)} rows={2} /></div>
-                <button onClick={() => setEditMode(false)} style={{ ...b(), marginTop: 8, fontSize: 11, padding: '4px 10px' }}>Cancelar</button>
-              </div>
-            )}
-
-            {prod.instrucciones && !editMode && (
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12, padding: '8px 10px', background: 'var(--bg)', borderRadius: 6, borderLeft: '3px solid var(--gold)' }}>{prod.instrucciones}</div>
-            )}
-
-            {/* ── Calculadora invertida ── */}
-            {receta && (
-              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14 }}>
-                <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>Calculadora de producción</div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 13, color: 'var(--muted)' }}>Tengo</span>
-                  <input type="number" value={kgProteina} onChange={e => setKgProteina(e.target.value)} min="0.1" step="0.5"
-                    style={{ width: 80, fontSize: 14, padding: '5px 8px', fontWeight: 'bold' }} />
-                  <span style={{ fontSize: 13 }}>kg de <strong>{receta.proteina}</strong></span>
+            {prod && (
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)' }}>{prod.nombre}</div>
+                  <button onClick={editMode ? guardarEdicion : abrirEdicion} disabled={saving}
+                    style={{ ...b(editMode ? 'gold' : undefined), padding: '4px 10px', fontSize: 11 }}>
+                    {saving ? 'Guardando...' : editMode ? '✓ Guardar' : '✏ Editar'}
+                  </button>
                 </div>
 
-                {kgProt > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '10px 14px', background: 'var(--gold-bg)', border: '1px solid var(--gold-d)', borderRadius: 8 }}>
-                    <span style={{ fontSize: 13, color: 'var(--muted)' }}>→ Produce aprox.</span>
-                    <span style={{ fontSize: 22, color: 'var(--gold)', fontWeight: 'bold' }}>{fmtN(kgProducto, 2)} kg</span>
-                    <span style={{ fontSize: 13, color: 'var(--muted)' }}>de producto terminado</span>
+                {!editMode ? (
+                  <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13, marginBottom: 10 }}>
+                    <span>PV: <strong style={{ color: 'var(--gold)' }}>{fmt(prod.precio_venta)}/kg</strong></span>
+                    <span>Costo: <strong>{fmt(prod.costo)}/kg</strong></span>
+                    <span>FC: <strong>{(prod.costo / prod.precio_venta * 100).toFixed(0)}%</strong></span>
+                    <span>Margen: <strong>{fmt(prod.precio_venta - prod.costo)}/kg</strong></span>
+                    <span>Stock: <strong style={{ color: prod.stock_kg < 2 ? '#aa2020' : prod.stock_kg < 5 ? '#a85010' : '#1a7a40' }}>{fmtN(prod.stock_kg)} kg</strong></span>
+                    <span>Vida: <strong>{prod.vida_util_dias} días</strong></span>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 8, marginBottom: 8 }}>
+                      <div><label style={lbl}>PV ($/kg)</label><input type="number" value={epv} onChange={e => setEpv(e.target.value)} /></div>
+                      <div><label style={lbl}>Costo ($/kg)</label><input type="number" value={ecosto} onChange={e => setEcosto(e.target.value)} /></div>
+                      <div><label style={lbl}>Stock (kg)</label><input type="number" value={estock} onChange={e => setEstock(e.target.value)} /></div>
+                      <div><label style={lbl}>Vida útil (días)</label><input type="number" value={evida} onChange={e => setEvida(e.target.value)} /></div>
+                    </div>
+                    <div><label style={lbl}>Instrucciones cocción</label><textarea value={einst} onChange={e => setEinst(e.target.value)} rows={2} /></div>
+                    <button onClick={() => setEditMode(false)} style={{ ...b(), marginTop: 8, fontSize: 11, padding: '4px 10px' }}>Cancelar</button>
                   </div>
                 )}
 
-                {/* Tabla ingredientes */}
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                    <thead>
-                      <tr>
-                        {['Ingrediente', 'Necesitás', 'Costo'].map(h => (
-                          <th key={h} style={{ textAlign: h === 'Costo' ? 'right' : 'left', padding: '5px 6px', fontSize: 10, color: 'var(--muted)', borderBottom: '1px solid var(--border)', letterSpacing: 1, textTransform: 'uppercase' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {receta.ingredientes.map((ing, i) => {
-                        const cantReal = ing.unidad === 'u' ? Math.ceil(ing.qty * factor) : parseFloat((ing.qty * factor).toFixed(3))
-                        const costoIng = ing.precio * (typeof cantReal === 'number' ? cantReal : 0)
-                        const esProteina = ing.nombre === receta.proteina
-                        return (
-                          <tr key={i} style={{ background: esProteina ? 'rgba(154,122,26,.06)' : 'transparent' }}>
-                            <td style={{ padding: '5px 6px', borderBottom: '1px solid var(--borderl)', fontWeight: esProteina ? 'bold' : 'normal' }}>
-                              {esProteina && <span style={{ color: 'var(--gold)', marginRight: 4 }}>★</span>}
-                              {ing.nombre}
-                            </td>
-                            <td style={{ padding: '5px 6px', borderBottom: '1px solid var(--borderl)', color: esProteina ? 'var(--gold)' : 'var(--text)', fontWeight: esProteina ? 'bold' : 'normal' }}>
-                              {factor > 0
-                                ? ing.unidad === 'u' ? `${Math.ceil(ing.qty * factor)} u` : `${fmtN(ing.qty * factor, 3)} ${ing.unidad}`
-                                : `${ing.qty} ${ing.unidad}`}
-                            </td>
-                            <td style={{ padding: '5px 6px', borderBottom: '1px solid var(--borderl)', textAlign: 'right', color: 'var(--muted)', fontSize: 11 }}>
-                              {factor > 0 ? fmt(costoIng) : '—'}
-                            </td>
+                {prod.instrucciones && !editMode && (
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12, padding: '8px 10px', background: 'var(--bg)', borderRadius: 6, borderLeft: '3px solid var(--gold)' }}>{prod.instrucciones}</div>
+                )}
+
+                {/* Calculadora */}
+                {receta && (
+                  <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+                    <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>Calculadora de producción</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>Tengo</span>
+                      <input type="number" value={kgProteina} onChange={e => setKgProteina(e.target.value)} min="0.1" step="0.5" style={{ width: 80, fontSize: 14, fontWeight: 'bold' }} />
+                      <span style={{ fontSize: 13 }}>kg de <strong>{receta.proteina}</strong></span>
+                    </div>
+                    {kgProt > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '10px 14px', background: 'var(--gold-bg)', border: '1px solid var(--gold-d)', borderRadius: 8 }}>
+                        <span style={{ fontSize: 13, color: 'var(--muted)' }}>→ Produce aprox.</span>
+                        <span style={{ fontSize: 22, color: 'var(--gold)', fontWeight: 'bold' }}>{fmtN(kgProducto, 2)} kg</span>
+                        <span style={{ fontSize: 13, color: 'var(--muted)' }}>terminado</span>
+                      </div>
+                    )}
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                        <thead><tr>
+                          {['Ingrediente', 'Cantidad', 'Precio/u', 'Costo'].map(h => (
+                            <th key={h} style={{ textAlign: h === 'Costo' || h === 'Precio/u' ? 'right' : 'left', padding: '5px 6px', fontSize: 10, color: 'var(--muted)', borderBottom: '1px solid var(--border)', letterSpacing: 1, textTransform: 'uppercase' }}>{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {receta.ingredientes.map((ing, i) => {
+                            const precioUso = preciosActuales[ing.nombre] ?? ing.precio
+                            const cantReal = factor > 0 ? (ing.unidad === 'u' ? Math.ceil(ing.qty * factor) : ing.qty * factor) : ing.qty
+                            const costoIng = precioUso * (typeof cantReal === 'number' ? cantReal : 0)
+                            const esProteina = ing.nombre === receta.proteina
+                            return (
+                              <tr key={i} style={{ background: esProteina ? 'rgba(154,122,26,.06)' : 'transparent' }}>
+                                <td style={{ padding: '5px 6px', borderBottom: '1px solid var(--borderl)', fontWeight: esProteina ? 'bold' : 'normal' }}>
+                                  {esProteina && <span style={{ color: 'var(--gold)', marginRight: 4 }}>★</span>}{ing.nombre}
+                                </td>
+                                <td style={{ padding: '5px 6px', borderBottom: '1px solid var(--borderl)', color: esProteina ? 'var(--gold)' : 'var(--text)', fontWeight: esProteina ? 'bold' : 'normal' }}>
+                                  {ing.unidad === 'u' ? `${Math.ceil(ing.qty * Math.max(factor, 1))} u` : `${fmtN(ing.qty * Math.max(factor, 1), 3)} ${ing.unidad}`}
+                                </td>
+                                <td style={{ padding: '5px 6px', borderBottom: '1px solid var(--borderl)', textAlign: 'right', color: 'var(--muted)', fontSize: 11 }}>{fmt(precioUso)}</td>
+                                <td style={{ padding: '5px 6px', borderBottom: '1px solid var(--borderl)', textAlign: 'right', fontSize: 11 }}>{factor > 0 ? fmt(costoIng) : '—'}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                        <tfoot>
+                          {receta.merma > 0 && <tr><td colSpan={3} style={{ padding: '5px 6px', fontSize: 11, color: 'var(--dim)' }}>+ Merma {(receta.merma * 100).toFixed(0)}%</td><td></td></tr>}
+                          <tr>
+                            <td colSpan={3} style={{ padding: '6px 6px 2px', fontSize: 13, fontWeight: 'bold' }}>Costo total estimado</td>
+                            <td style={{ padding: '6px 6px 2px', textAlign: 'right', color: 'var(--gold)', fontSize: 15, fontWeight: 'bold' }}>{factor > 0 ? fmt(costoCalculado) : fmt(receta.costoBase)}</td>
                           </tr>
-                        )
-                      })}
-                    </tbody>
-                    <tfoot>
-                      {receta.merma > 0 && (
-                        <tr><td colSpan={2} style={{ padding: '5px 6px', fontSize: 11, color: 'var(--dim)' }}>+ Merma {(receta.merma * 100).toFixed(0)}%</td><td></td></tr>
-                      )}
-                      <tr>
-                        <td colSpan={2} style={{ padding: '6px 6px 2px', fontSize: 13, fontWeight: 'bold' }}>Costo total estimado</td>
-                        <td style={{ padding: '6px 6px 2px', textAlign: 'right', color: 'var(--gold)', fontSize: 15, fontWeight: 'bold' }}>
-                          {factor > 0 ? fmt(costoCalculado) : fmt(receta.costoBase)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td colSpan={3} style={{ padding: '3px 6px', fontSize: 11, color: 'var(--dim)' }}>{receta.rendimiento}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-            )}
+                          <tr><td colSpan={4} style={{ padding: '3px 6px', fontSize: 11, color: 'var(--dim)' }}>{receta.rendimiento}</td></tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
-            {/* Pasos de elaboración */}
-            {receta && (
-              <>
-                <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Elaboración</div>
-                <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                  {receta.pasos.map((paso, i) => (
-                    <li key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, fontSize: 12, lineHeight: 1.6 }}>
-                      <span style={{ minWidth: 22, height: 22, borderRadius: '50%', background: 'var(--gold-bg)', border: '1px solid var(--gold-d)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'var(--gold)', flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
-                      <span>{paso}</span>
-                    </li>
-                  ))}
-                </ol>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ── Panel derecho: Iniciar orden ── */}
-      <div>
-        <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>Iniciar Orden de Producción</div>
-        {!prod ? (
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 40, color: 'var(--dim)', fontSize: 13, textAlign: 'center', boxShadow: 'var(--shadow)' }}>
-            Seleccioná un producto para iniciar una orden
-          </div>
-        ) : (
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)' }}>
-            <div style={{ marginBottom: 14, padding: '10px 14px', background: 'var(--gold-bg)', border: '1px solid var(--gold-d)', borderRadius: 8, fontSize: 13 }}>
-              <strong style={{ color: 'var(--gold)' }}>{prod.nombre}</strong><br />
-              <span style={{ color: 'var(--muted)', fontSize: 12 }}>Stock actual: {fmtN(prod.stock_kg)} kg · Vida útil: {prod.vida_util_dias} días</span>
-              {kgProt > 0 && receta && (
-                <div style={{ marginTop: 6, fontSize: 12 }}>
-                  Desde calculadora: <strong style={{ color: 'var(--gold)' }}>{fmtN(kgProducto, 2)} kg</strong> de producto estimado
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10, marginBottom: 10 }}>
-              <div>
-                <label style={lbl}>Cantidad a producir (kg)</label>
-                <input type="number" value={pfCant} onChange={e => setPfCant(e.target.value)} min="0.1" step="0.1" />
-                {receta && kgProt > 0 && (
-                  <button onClick={() => setPfCant(fmtN(kgProducto, 2))} style={{ marginTop: 4, fontSize: 10, color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-                    ↑ Usar {fmtN(kgProducto, 2)} kg de la calculadora
-                  </button>
+                {/* Pasos */}
+                {receta && (
+                  <>
+                    <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Elaboración</div>
+                    <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                      {receta.pasos.map((paso, i) => (
+                        <li key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, fontSize: 12, lineHeight: 1.6 }}>
+                          <span style={{ minWidth: 22, height: 22, borderRadius: '50%', background: 'var(--gold-bg)', border: '1px solid var(--gold-d)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'var(--gold)', flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
+                          <span>{paso}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </>
                 )}
               </div>
-              <div><label style={lbl}>Fecha de producción</label><input type="date" value={pfFecha} onChange={e => setPfFecha(e.target.value)} /></div>
-              <div><label style={lbl}>Número de lote</label><input value={pfLote} onChange={e => setPfLote(e.target.value)} /></div>
-              <div><label style={lbl}>Responsable</label><input value={pfResp} onChange={e => setPfResp(e.target.value)} placeholder="Nombre" /></div>
-            </div>
+            )}
+          </div>
 
-            <div style={{ marginBottom: 12 }}><label style={lbl}>Notas</label><textarea value={pfNotas} onChange={e => setPfNotas(e.target.value)} rows={2} /></div>
-
-            {pfCant && venceISO && (
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, padding: '8px 12px', background: 'var(--bg)', borderRadius: 6 }}>
-                Costo estimado: <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{fmt(receta ? receta.costoBase * parseFloat(pfCant) : 0)}</span>
-                {'  ·  '}Vence: <strong>{fechaES(venceISO)}</strong>
+          {/* Panel derecho: Orden */}
+          <div>
+            <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>Iniciar Orden de Producción</div>
+            {!prod ? (
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 40, color: 'var(--dim)', fontSize: 13, textAlign: 'center', boxShadow: 'var(--shadow)' }}>
+                Seleccioná un producto
+              </div>
+            ) : (
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)' }}>
+                <div style={{ marginBottom: 14, padding: '10px 14px', background: 'var(--gold-bg)', border: '1px solid var(--gold-d)', borderRadius: 8, fontSize: 13 }}>
+                  <strong style={{ color: 'var(--gold)' }}>{prod.nombre}</strong><br />
+                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>Stock: {fmtN(prod.stock_kg)} kg · Vida útil: {prod.vida_util_dias} días</span>
+                  {kgProt > 0 && receta && <div style={{ marginTop: 6, fontSize: 12 }}>Desde calculadora: <strong style={{ color: 'var(--gold)' }}>{fmtN(kgProducto, 2)} kg</strong></div>}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <label style={lbl}>Cantidad a producir (kg)</label>
+                    <input type="number" value={pfCant} onChange={e => setPfCant(e.target.value)} min="0.1" step="0.1" />
+                    {receta && kgProt > 0 && (
+                      <button onClick={() => setPfCant(fmtN(kgProducto, 2))} style={{ marginTop: 4, fontSize: 10, color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                        ↑ Usar {fmtN(kgProducto, 2)} kg
+                      </button>
+                    )}
+                  </div>
+                  <div><label style={lbl}>Fecha de producción</label><input type="date" value={pfFecha} onChange={e => setPfFecha(e.target.value)} /></div>
+                  <div><label style={lbl}>Número de lote</label><input value={pfLote} onChange={e => setPfLote(e.target.value)} /></div>
+                  <div><label style={lbl}>Responsable</label><input value={pfResp} onChange={e => setPfResp(e.target.value)} placeholder="Nombre" /></div>
+                </div>
+                <div style={{ marginBottom: 12 }}><label style={lbl}>Notas</label><textarea value={pfNotas} onChange={e => setPfNotas(e.target.value)} rows={2} /></div>
+                {pfCant && venceISO && (
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, padding: '8px 12px', background: 'var(--bg)', borderRadius: 6 }}>
+                    Costo estimado: <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{fmt(receta ? receta.costoBase * parseFloat(pfCant) : 0)}</span>{'  ·  '}Vence: <strong>{fechaES(venceISO)}</strong>
+                  </div>
+                )}
+                <button onClick={crearOrden} disabled={savingOrden} style={{ ...b('gold'), width: '100%', padding: '10px', fontSize: 14, opacity: savingOrden ? 0.6 : 1 }}>
+                  {savingOrden ? 'Creando...' : 'Crear orden + ir a etiquetas →'}
+                </button>
               </div>
             )}
-
-            <button onClick={crearOrden} disabled={savingOrden} style={{ ...b('gold'), width: '100%', padding: '10px', fontSize: 14, opacity: savingOrden ? 0.6 : 1 }}>
-              {savingOrden ? 'Creando...' : 'Crear orden + ir a etiquetas →'}
-            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════ TAB: PRECIOS ══════════════════════════════ */}
+      {tab === 'precios' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 4 }}>Precios de ingredientes</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                Editá el precio de cualquier ingrediente. El sistema recalcula automáticamente el costo y el PV de todos los productos afectados, redondeando a $500.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {tieneEdiciones && (
+                <>
+                  <button onClick={() => setPreciosEditados({})} style={b()}>Descartar cambios</button>
+                  <button onClick={calcularImpacto} style={b('blue')}>Ver impacto ({Object.keys(preciosEditados).length} ingrediente{Object.keys(preciosEditados).length !== 1 ? 's' : ''})</button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Buscador */}
+          <div style={{ marginBottom: 14 }}>
+            <input value={searchIng} onChange={e => setSearchIng(e.target.value)} placeholder="Buscar ingrediente..." style={{ maxWidth: 300 }} />
+          </div>
+
+          {/* Tabla de ingredientes */}
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)', marginBottom: 16 }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr>
+                    {['Ingrediente', 'Precio actual', 'Precio nuevo', 'Δ Variación', 'Productos afectados'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10, color: 'var(--muted)', borderBottom: '1px solid var(--border)', letterSpacing: 1, textTransform: 'uppercase' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ingredientesLista.map(([nombre, precioActual]) => {
+                    const precioNuevo = preciosEditados[nombre]
+                    const variacion = precioNuevo ? ((precioNuevo - precioActual) / precioActual * 100) : 0
+                    const productosAfectados = Object.entries(RECETAS_BASE)
+                      .filter(([, r]) => r.ingredientes.some(ing => ing.nombre === nombre))
+                      .map(([n]) => n.split(' ').slice(0, 3).join(' '))
+                    return (
+                      <tr key={nombre}>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontWeight: nombre in preciosEditados ? 'bold' : 'normal' }}>
+                          {nombre in preciosEditados && <span style={{ color: 'var(--gold)', marginRight: 6 }}>●</span>}
+                          {nombre}
+                        </td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--muted)' }}>{fmt(precioActual)}</td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', width: 140 }}>
+                          <input
+                            type="number"
+                            value={precioNuevo ?? ''}
+                            placeholder={String(Math.round(precioActual))}
+                            onChange={e => {
+                              const val = parseFloat(e.target.value)
+                              if (isNaN(val) || val <= 0) {
+                                const { [nombre]: _, ...rest } = preciosEditados
+                                setPreciosEditados(rest)
+                              } else {
+                                setPreciosEditados(prev => ({ ...prev, [nombre]: val }))
+                              }
+                            }}
+                            style={{ fontSize: 13, padding: '5px 8px', width: '100%', borderColor: precioNuevo ? 'var(--gold-d)' : 'var(--border)' }}
+                          />
+                        </td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontSize: 12 }}>
+                          {precioNuevo ? (
+                            <span style={{ color: variacion > 0 ? '#aa2020' : '#1a7a40', fontWeight: 'bold' }}>
+                              {variacion > 0 ? '↑' : '↓'} {Math.abs(variacion).toFixed(1)}%
+                            </span>
+                          ) : <span style={{ color: 'var(--dim)' }}>—</span>}
+                        </td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontSize: 11, color: 'var(--muted)' }}>
+                          {productosAfectados.slice(0, 3).join(' · ')}{productosAfectados.length > 3 ? ` +${productosAfectados.length - 3}` : ''}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Panel de impacto */}
+          {showImpacto && impacto.length > 0 && (
+            <div style={{ background: 'var(--card)', border: '2px solid var(--gold-d)', borderRadius: 8, padding: 16, boxShadow: 'var(--shadow)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 'bold', color: 'var(--gold)' }}>Impacto en precios de venta</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                    Los precios de venta se calculan manteniendo el FC% actual de cada producto. Redondeados a $500.
+                  </div>
+                </div>
+                <button onClick={() => setShowImpacto(false)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}>✕</button>
+              </div>
+
+              <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr>
+                      {['Producto', 'FC%', 'Costo anterior', 'Costo nuevo', 'PV anterior', 'PV calculado', 'PV nuevo (×$500)'].map(h => (
+                        <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10, color: 'var(--muted)', borderBottom: '1px solid var(--border)', letterSpacing: 1, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {impacto.map(item => (
+                      <tr key={item.id}>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontWeight: 'bold' }}>{item.nombre}</td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--muted)' }}>{(item.fc * 100).toFixed(0)}%</td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--muted)', textDecoration: 'line-through' }}>{fmt(item.costoActual)}</td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: item.costoNuevo > item.costoActual ? '#aa2020' : '#1a7a40', fontWeight: 'bold' }}>
+                          {fmt(item.costoNuevo)}
+                          <span style={{ fontSize: 10, marginLeft: 4 }}>
+                            ({item.costoNuevo > item.costoActual ? '+' : ''}{((item.costoNuevo - item.costoActual) / item.costoActual * 100).toFixed(1)}%)
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--muted)', textDecoration: 'line-through' }}>{fmt(item.pvActual)}</td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--muted)', fontSize: 11 }}>{fmt(item.pvNuevo)}</td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--gold)', fontWeight: 'bold', fontSize: 15 }}>
+                          {fmt(item.pvNuevoRedondeado)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button onClick={() => setShowImpacto(false)} style={b()}>Revisar cambios</button>
+                <button onClick={aplicarCambios} disabled={applyingPrecios} style={{ ...b('gold'), padding: '10px 20px', fontSize: 13, opacity: applyingPrecios ? 0.6 : 1 }}>
+                  {applyingPrecios ? 'Aplicando...' : `✓ Confirmar y actualizar ${impacto.length} producto${impacto.length !== 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showImpacto && impacto.length === 0 && (
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 20, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+              Los ingredientes editados no afectan a ningún producto con receta en el sistema.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
