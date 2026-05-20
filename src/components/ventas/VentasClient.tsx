@@ -85,9 +85,9 @@ export function VentasClient() {
     a.click()
   }
 
-  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: '16px' }
+  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: '16px' }
   const mbox: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: 12, padding: 22, width: '100%', maxWidth: 560, maxHeight: '88vh', overflowY: 'auto', boxSizing: 'border-box' as const }
-  const ESTADO_COLOR: Record<string, string> = { cobrada: '#4caf7d', pendiente: '#c9a227', anulada: '#d95f5f', recibido: '#7a776f', preparando: '#5b9bd5', listo: '#c9a227', entregado: '#9b72d4', cobrado: '#4caf7d', cancelado: '#d95f5f' }
+  const ESTADO_COLOR: Record<string, string> = { cobrada: '#1a7a40', pendiente: '#9a7a1a', anulada: '#aa2020', recibido: '#7a776f', preparando: '#1050a0', listo: '#9a7a1a', entregado: '#6030a0', cobrado: '#1a7a40', cancelado: '#aa2020' }
 
   return (
     <div>
@@ -109,14 +109,14 @@ export function VentasClient() {
 
       {/* Filtros y tabs */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8, paddingTop: 20 }}>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {(['todas', 'ventas', 'pedidos'] as TabType[]).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${tab === t ? 'var(--gold)' : 'var(--border)'}`, background: tab === t ? 'var(--gold-bg)' : 'var(--card)', color: tab === t ? 'var(--gold)' : 'var(--muted)', cursor: 'pointer', fontSize: 11, fontFamily: 'Georgia,serif' }}>
               {t === 'todas' ? 'Todas' : t === 'ventas' ? 'Ventas (mostrador)' : 'Pedidos (canal)'}
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 3 }}>Desde</div>
             <input type="date" value={desde} onChange={e => setDesde(e.target.value)} style={{ width: 145 }} />
@@ -131,9 +131,9 @@ export function VentasClient() {
 
       {/* VENTAS */}
       {(tab === 'todas' || tab === 'ventas') && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14, overflowX: 'auto' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14 }}>
           <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 10 }}>Ventas — Mostrador</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <div style={{ overflowX: 'auto', width: '100%' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 500 }}>
             <thead><tr>{['Ticket', 'Fecha', 'Cliente', 'Pago', 'Total', 'Estado', ''].map(h => <th key={h} style={{ fontSize: 10, letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'left', padding: '7px 10px', borderBottom: '1px solid var(--border)' }}>{h}</th>)}</tr></thead>
             <tbody>
               {ventas.length === 0
@@ -157,15 +157,15 @@ export function VentasClient() {
                   </tr>
                 ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 
       {/* PEDIDOS */}
       {(tab === 'todas' || tab === 'pedidos') && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, overflowX: 'auto' }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
           <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 10 }}>Pedidos — Canales</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <div style={{ overflowX: 'auto', width: '100%' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 500 }}>
             <thead><tr>{['#', 'Fecha', 'Cliente', 'Canal', 'Total', 'Estado', 'Cobrado', ''].map(h => <th key={h} style={{ fontSize: 10, letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'left', padding: '7px 10px', borderBottom: '1px solid var(--border)' }}>{h}</th>)}</tr></thead>
             <tbody>
               {pedidos.length === 0
@@ -176,7 +176,7 @@ export function VentasClient() {
                     <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{fechaES(p.fecha)}</td>
                     <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{p.cliente}</td>
                     <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>
-                      <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 10, background: 'rgba(91,155,213,.12)', color: '#5b9bd5', border: '1px solid rgba(91,155,213,.25)' }}>{p.canal}</span>
+                      <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 10, background: 'rgba(30,100,180,.10)', color: '#1050a0', border: '1px solid rgba(30,100,180,.25)' }}>{p.canal}</span>
                     </td>
                     <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--gold)' }}>{fmt(p.total || 0)}</td>
                     <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>
@@ -184,8 +184,8 @@ export function VentasClient() {
                     </td>
                     <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>
                       {p.cobrado
-                        ? <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 10, background: 'rgba(76,175,125,.12)', color: '#4caf7d', border: '1px solid rgba(76,175,125,.25)' }}>✓</span>
-                        : <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 10, background: 'rgba(217,95,95,.12)', color: '#d95f5f', border: '1px solid rgba(217,95,95,.25)' }}>Pend.</span>}
+                        ? <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 10, background: 'rgba(30,140,70,.10)', color: '#1a7a40', border: '1px solid rgba(30,140,70,.25)' }}>✓</span>
+                        : <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 10, background: 'rgba(190,50,50,.10)', color: '#aa2020', border: '1px solid rgba(190,50,50,.25)' }}>Pend.</span>}
                     </td>
                     <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>
                       <div style={{ display: 'flex', gap: 4 }}>
@@ -196,7 +196,7 @@ export function VentasClient() {
                   </tr>
                 ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 

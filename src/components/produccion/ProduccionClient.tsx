@@ -7,8 +7,8 @@ import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 import { useRouter } from 'next/navigation'
 
 const ESTADOS = ['pendiente', 'en_progreso', 'completado'] as const
-const ESTADO_COLOR: Record<string, string> = { pendiente: '#c9a227', en_progreso: '#5b9bd5', completado: '#4caf7d', cancelado: '#d95f5f' }
-const b = (v?: 'gold' | 'blue' | 'red'): React.CSSProperties => ({ padding: '4px 9px', borderRadius: 6, border: `1px solid ${v === 'gold' ? 'var(--gold)' : v === 'blue' ? 'rgba(91,155,213,.25)' : v === 'red' ? 'rgba(217,95,95,.25)' : 'var(--border)'}`, background: v === 'gold' ? 'var(--gold)' : v === 'blue' ? 'rgba(91,155,213,.12)' : v === 'red' ? 'rgba(217,95,95,.12)' : 'var(--card)', color: v === 'gold' ? '#0f0f0f' : v === 'blue' ? '#5b9bd5' : v === 'red' ? '#d95f5f' : 'var(--text)', cursor: 'pointer', fontSize: 11, fontFamily: 'Georgia,serif' })
+const ESTADO_COLOR: Record<string, string> = { pendiente: '#9a7a1a', en_progreso: '#1050a0', completado: '#1a7a40', cancelado: '#aa2020' }
+const b = (v?: 'gold' | 'blue' | 'red'): React.CSSProperties => ({ padding: '4px 9px', borderRadius: 6, border: `1px solid ${v === 'gold' ? 'var(--gold)' : v === 'blue' ? 'rgba(30,100,180,.25)' : v === 'red' ? 'rgba(190,50,50,.25)' : 'var(--border)'}`, background: v === 'gold' ? 'var(--gold)' : v === 'blue' ? 'rgba(30,100,180,.10)' : v === 'red' ? 'rgba(190,50,50,.10)' : 'var(--card)', color: v === 'gold' ? '#0f0f0f' : v === 'blue' ? '#1050a0' : v === 'red' ? '#aa2020' : 'var(--text)', cursor: 'pointer', fontSize: 11, fontFamily: 'Georgia,serif' })
 const lbl: React.CSSProperties = { fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 3 }
 
 // Item de la sesión de producción del día
@@ -98,12 +98,12 @@ export function ProduccionClient() {
     }
   }
 
-  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: '16px' }
+  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: '16px' }
   const mbox: React.CSSProperties = { background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: 12, padding: 22, width: '100%', maxWidth: 640, maxHeight: '88vh', overflowY: 'auto', boxSizing: 'border-box' as const }
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <select value={filtro} onChange={e => setFiltro(e.target.value)} style={{ width: 160 }}>
             <option value="">Todas las órdenes</option>
@@ -112,9 +112,9 @@ export function ProduccionClient() {
             <option value="completado">Completado</option>
           </select>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button onClick={() => router.push('/fichas')} style={b()}>+ Nueva desde ficha</button>
-          <button onClick={() => { setSesionItems([]); setSesionFecha(today()); setModal('sesion') }} style={{ ...b('gold'), padding: '6px 14px', fontSize: 12 }}>+ Cargar producción del día</button>
+          <button onClick={() => { setSesionItems([]); setSesionFecha(today()); setModal('sesion') }} style={{ ...b('gold'), padding: '6px 14px', fontSize: 12 }}>+ Cargar producción</button>
         </div>
       </div>
 
@@ -130,7 +130,7 @@ export function ProduccionClient() {
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{o.producto_nombre}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{fmtN(o.cantidad_kg)} kg</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{fechaES(o.fecha_produccion)}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: '#d95f5f' }}>{fechaES(o.fecha_vencimiento)}</td>
+                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: '#aa2020' }}>{fechaES(o.fecha_vencimiento)}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>
                     <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 10, color: ESTADO_COLOR[o.estado] || 'var(--muted)', border: `1px solid ${ESTADO_COLOR[o.estado] || 'var(--muted)'}44`, background: `${ESTADO_COLOR[o.estado] || 'var(--muted)'}18` }}>{o.estado}</span>
                   </td>
@@ -140,7 +140,7 @@ export function ProduccionClient() {
                       {o.estado === 'pendiente' && <button onClick={() => avanzar(o.id, o.estado)} style={{...b('blue'), padding:'3px 8px', fontSize:10}}>Iniciar</button>}
                       {o.estado === 'en_progreso' && <button onClick={() => avanzar(o.id, o.estado)} style={{...b('green'), padding:'3px 8px', fontSize:10}}>Completar</button>}
                       <button onClick={() => router.push('/etiquetas?orden=' + o.id)} style={b('blue')}>🏷</button>
-                      <button onClick={() => eliminarOrden(o.id, o.numero_lote)} style={{padding:'3px 7px',borderRadius:6,border:'1px solid rgba(217,95,95,.3)',background:'rgba(217,95,95,.1)',color:'#d95f5f',cursor:'pointer',fontSize:11,fontFamily:'Georgia,serif'}}>✕</button>
+                      <button onClick={() => eliminarOrden(o.id, o.numero_lote)} style={{padding:'3px 7px',borderRadius:6,border:'1px solid rgba(217,95,95,.3)',background:'rgba(217,95,95,.1)',color:'#aa2020',cursor:'pointer',fontSize:11,fontFamily:'Georgia,serif'}}>✕</button>
                     </div>
                   </td>
                 </tr>
@@ -154,7 +154,7 @@ export function ProduccionClient() {
         <div style={overlay} onClick={e => { if (e.target === e.currentTarget) setModal(null) }}>
           <div style={mbox}>
             <div style={{ fontSize: 13, letterSpacing: 1, color: 'var(--gold)', marginBottom: 16, textTransform: 'uppercase' }}>Cargar Producción del Día</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 14 }}>
               <div><label style={lbl}>Fecha de producción</label><input type="date" value={sesionFecha} onChange={e => setSesionFecha(e.target.value)} /></div>
               <div><label style={lbl}>Responsable</label><input value={sesionResp} onChange={e => setSesionResp(e.target.value)} placeholder="Nombre" /></div>
             </div>
@@ -162,11 +162,11 @@ export function ProduccionClient() {
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
               <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 8 }}>Agregar productos producidos</div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                <select value={selProd} onChange={e => setSelProd(e.target.value)} style={{ flex: 2 }}>
+                <select value={selProd} onChange={e => setSelProd(e.target.value)} style={{ flex: '1 1 160px', minWidth: 0 }}>
                   <option value="">— Seleccionar producto —</option>
                   {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                 </select>
-                <input type="number" value={selCant} onChange={e => setSelCant(e.target.value)} placeholder="kg" min="0.1" step="0.5" style={{ width: 80 }} />
+                <input type="number" value={selCant} onChange={e => setSelCant(e.target.value)} placeholder="kg" min="0.1" step="0.5" style={{ width: 70, flexShrink: 0 }} />
                 <button onClick={addSesionItem} style={b('gold')}>+ Agregar</button>
               </div>
 
@@ -177,7 +177,7 @@ export function ProduccionClient() {
                     <div style={{ flex: 1 }}>{item.nombre}</div>
                     <span style={{ color: 'var(--gold)' }}>{fmtN(item.cant)} kg</span>
                     <input value={item.lote} onChange={e => setSesionItems(prev => prev.map((x, j) => j === i ? { ...x, lote: e.target.value } : x))} style={{ width: 100, fontSize: 11, padding: '2px 6px' }} />
-                    <button onClick={() => setSesionItems(prev => prev.filter((_, j) => j !== i))} style={{ color: '#d95f5f', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                    <button onClick={() => setSesionItems(prev => prev.filter((_, j) => j !== i))} style={{ color: '#aa2020', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>✕</button>
                   </div>
                 ))
               }

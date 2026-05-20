@@ -114,7 +114,7 @@ export function POSClient() {
               <span style={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>kg</span>
               <button onClick={() => changeQty(i.id, 0.1)} style={{ width: 26, height: 26, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>+</button>
               <div style={{ minWidth: 64, textAlign: 'right', color: 'var(--gold)', fontSize: 12, flexShrink: 0 }}>{fmt(i.pv * i.qty)}</div>
-              <button onClick={() => removeFromCart(i.id)} style={{ color: '#d95f5f', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, flexShrink: 0, padding: '0 2px' }}>✕</button>
+              <button onClick={() => removeFromCart(i.id)} style={{ color: '#aa2020', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, flexShrink: 0, padding: '0 2px' }}>✕</button>
             </div>
           ))}
       </div>
@@ -131,7 +131,7 @@ export function POSClient() {
       {/* Totales */}
       <div style={{ borderTop: '1px solid var(--gold-d)', paddingTop: 10, marginTop: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3 }}><span style={{ color: 'var(--muted)' }}>Subtotal</span><span>{fmt(subtotal)}</span></div>
-        {descuentoValor > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3, color: '#d95f5f' }}><span>Dto.{descPct ? ` ${descPct}%` : ''}</span><span>−{fmt(descuentoValor)}</span></div>}
+        {descuentoValor > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3, color: '#aa2020' }}><span>Dto.{descPct ? ` ${descPct}%` : ''}</span><span>−{fmt(descuentoValor)}</span></div>}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 20, color: 'var(--gold)' }}><span>TOTAL</span><span>{fmt(total)}</span></div>
       </div>
 
@@ -200,7 +200,7 @@ export function POSClient() {
           <div className="prod-grid">
             {filtered.map(p => {
               const stk = p.stock_kg || 0
-              const col = stk < 2 ? '#d95f5f' : stk < 5 ? '#d97c3a' : '#4caf7d'
+              const col = stk < 2 ? '#aa2020' : stk < 5 ? '#b05010' : '#1a7a40'
               return (
                 <div key={p.id} onClick={() => addToCart(p)} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 11, cursor: 'pointer', position: 'relative', userSelect: 'none' }}>
                   <div style={{ position: 'absolute', top: 8, right: 8, width: 6, height: 6, borderRadius: '50%', background: CAT_COLOR[p.categoria] || 'var(--dim)' }} />
@@ -227,7 +227,7 @@ export function POSClient() {
 
       {/* Mobile FAB */}
       <button className="pos-fab" onClick={() => setModal('cart')}
-        style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px', borderRadius: 30, border: '1px solid var(--gold)', background: cart.length ? 'var(--gold)' : 'var(--card)', color: cart.length ? '#0f0f0f' : 'var(--muted)', cursor: 'pointer', fontFamily: 'Georgia,serif', fontSize: 14, fontWeight: 'bold', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+        style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 20px', borderRadius: 30, border: '1px solid var(--gold)', background: cart.length ? 'var(--gold)' : '#ffffff', color: cart.length ? '#0f0f0f' : 'var(--muted)', cursor: 'pointer', fontFamily: 'Georgia,serif', fontSize: 14, fontWeight: 'bold', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
         <span>🛒 {cartCount > 0 ? `${cartCount} ítem${cartCount > 1 ? 's' : ''}` : 'Ver carrito'}</span>
         {total > 0 && <span>{fmt(total)}</span>}
       </button>
@@ -249,7 +249,7 @@ export function POSClient() {
 
       {/* Modales ticket / comanda */}
       {(modal === 'ticket' || modal === 'comanda') && (
-        <div style={{ display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 300, alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        <div style={{ display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, alignItems: 'center', justifyContent: 'center', padding: 16 }}
           onClick={e => { if (e.target === e.currentTarget) setModal(null) }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: 12, padding: 22, width: '100%', maxWidth: 400, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ fontSize: 13, letterSpacing: 1, color: 'var(--gold)', marginBottom: 16, textTransform: 'uppercase' }}>{modal === 'ticket' ? '🧾 Ticket' : '🗒 Comanda'}</div>

@@ -6,9 +6,9 @@ import type { Producto } from '@/types/database'
 import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 
 const CATS = ['VACUNO','CERDO','POLLO','PAPAS','JUMBALAY','PACKS']
-const b = (v?:'gold'|'red'|'green'): React.CSSProperties => ({ padding:'8px 12px',borderRadius:6,border:`1px solid ${v==='gold'?'var(--gold)':v==='red'?'rgba(217,95,95,.25)':v==='green'?'rgba(76,175,125,.25)':'var(--border)'}`,background:v==='gold'?'var(--gold)':v==='red'?'rgba(217,95,95,.12)':v==='green'?'rgba(76,175,125,.12)':'var(--card)',color:v==='gold'?'#0f0f0f':v==='red'?'#d95f5f':v==='green'?'#4caf7d':'var(--text)',cursor:'pointer',fontSize:12,fontFamily:'Georgia,serif' })
+const b = (v?:'gold'|'red'|'green'): React.CSSProperties => ({ padding:'8px 12px',borderRadius:6,border:`1px solid ${v==='gold'?'var(--gold)':v==='red'?'rgba(190,50,50,.25)':v==='green'?'rgba(30,140,70,.25)':'var(--border)'}`,background:v==='gold'?'var(--gold)':v==='red'?'rgba(190,50,50,.10)':v==='green'?'rgba(30,140,70,.10)':'var(--card)',color:v==='gold'?'#0f0f0f':v==='red'?'#aa2020':v==='green'?'#1a7a40':'var(--text)',cursor:'pointer',fontSize:12,fontFamily:'Georgia,serif' })
 const lbl: React.CSSProperties = { fontSize:11,color:'var(--muted)',display:'block',marginBottom:4 }
-const overlay: React.CSSProperties = { display:'flex',position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:200,alignItems:'center',justifyContent:'center',padding:'16px' }
+const overlay: React.CSSProperties = { display:'flex',position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:200,alignItems:'center',justifyContent:'center',padding:'16px' }
 const mbox: React.CSSProperties = { background:'var(--card)',border:'1px solid var(--gold-d)',borderRadius:12,padding:22,width:'100%',maxWidth:520,maxHeight:'88vh',overflowY:'auto',boxSizing:'border-box' as const }
 
 export function ProductosClient() {
@@ -63,7 +63,7 @@ export function ProductosClient() {
       <style>{`.pg{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}`}</style>
 
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:10,marginBottom:16}}>
-        {[['Productos',prods.length,''],['Stock bajo',prods.filter(p=>p.stock_kg<2).length,'#d95f5f'],['Valor stock',fmt(prods.reduce((s,p)=>s+p.precio_venta*p.stock_kg,0)),''],['FC prom.',(prods.length?`${(prods.reduce((s,p)=>s+p.costo/p.precio_venta,0)/prods.length*100).toFixed(0)}%`:'—'),'']].map(([l,v,c])=>(
+        {[['Productos',prods.length,''],['Stock bajo',prods.filter(p=>p.stock_kg<2).length,'#aa2020'],['Valor stock',fmt(prods.reduce((s,p)=>s+p.precio_venta*p.stock_kg,0)),''],['FC prom.',(prods.length?`${(prods.reduce((s,p)=>s+p.costo/p.precio_venta,0)/prods.length*100).toFixed(0)}%`:'—'),'']].map(([l,v,c])=>(
           <div key={String(l)} style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,padding:'12px 14px'}}>
             <div style={{fontSize:10,letterSpacing:'1.5px',textTransform:'uppercase',color:'var(--muted)',marginBottom:5}}>{l}</div>
             <div style={{fontSize:18,color:(c as string)||'var(--gold)'}}>{v}</div>
@@ -93,8 +93,8 @@ export function ProductosClient() {
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:10,fontSize:12}}>
               <div><div style={{color:'var(--muted)',fontSize:10}}>PV/kg</div><div style={{color:'var(--gold)'}}>{fmt(p.precio_venta)}</div></div>
-              <div><div style={{color:'var(--muted)',fontSize:10}}>FC</div><div style={{color:fc<=0.45?'#4caf7d':fc<=0.60?'#c9a227':'#d95f5f'}}>{(fc*100).toFixed(0)}%</div></div>
-              <div><div style={{color:'var(--muted)',fontSize:10}}>Stock</div><div style={{color:stk<2?'#d95f5f':stk<5?'#d97c3a':'#4caf7d'}}>{fmtN(stk)} kg</div></div>
+              <div><div style={{color:'var(--muted)',fontSize:10}}>FC</div><div style={{color:fc<=0.45?'#1a7a40':fc<=0.60?'#9a7a1a':'#aa2020'}}>{(fc*100).toFixed(0)}%</div></div>
+              <div><div style={{color:'var(--muted)',fontSize:10}}>Stock</div><div style={{color:stk<2?'#aa2020':stk<5?'#b05010':'#1a7a40'}}>{fmtN(stk)} kg</div></div>
             </div>
             <button onClick={()=>abrirStock(p)} style={{...b(),width:'100%'}}>📦 Ajustar stock</button>
           </div>
@@ -108,8 +108,8 @@ export function ProductosClient() {
           <tbody>
             {filtered.map(p=>{
               const fc=p.costo/p.precio_venta; const stk=p.stock_kg||0
-              const fcColor=fc<=0.45?'#4caf7d':fc<=0.60?'#c9a227':'#d95f5f'
-              const stkColor=stk<2?'#d95f5f':stk<5?'#d97c3a':'#4caf7d'
+              const fcColor=fc<=0.45?'#1a7a40':fc<=0.60?'#9a7a1a':'#aa2020'
+              const stkColor=stk<2?'#aa2020':stk<5?'#b05010':'#1a7a40'
               return <tr key={p.id}>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:6,height:6,borderRadius:'50%',background:CAT_COLOR[p.categoria]||'var(--dim)',flexShrink:0}} />{p.nombre}</div></td>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:4,fontSize:10,color:CAT_COLOR[p.categoria],border:`1px solid ${CAT_COLOR[p.categoria]}44`,background:`${CAT_COLOR[p.categoria]}18`}}>{p.categoria}</span></td>

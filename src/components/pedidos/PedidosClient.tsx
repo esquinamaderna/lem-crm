@@ -9,8 +9,8 @@ import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 const ESTADOS = ['recibido', 'preparando', 'listo', 'entregado', 'cobrado'] as const
 const CANALES = ['Mostrador', 'WhatsApp', 'Instagram', 'Tienda Nube', 'Teléfono']
 const PAGOS = ['Efectivo', 'Transferencia', 'MercadoPago', 'Débito', 'Crédito', 'Pendiente']
-const ESTADO_COLOR: Record<string, string> = { recibido: '#7a776f', preparando: '#5b9bd5', listo: '#c9a227', entregado: '#9b72d4', cobrado: '#4caf7d', cancelado: '#d95f5f' }
-const b = (v?: 'gold' | 'red' | 'green'): React.CSSProperties => ({ padding: '8px 12px', borderRadius: 6, border: `1px solid ${v === 'gold' ? 'var(--gold)' : v === 'red' ? 'rgba(217,95,95,.25)' : v === 'green' ? 'rgba(76,175,125,.25)' : 'var(--border)'}`, background: v === 'gold' ? 'var(--gold)' : v === 'red' ? 'rgba(217,95,95,.12)' : v === 'green' ? 'rgba(76,175,125,.12)' : 'var(--card)', color: v === 'gold' ? '#0f0f0f' : v === 'red' ? '#d95f5f' : v === 'green' ? '#4caf7d' : 'var(--text)', cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif' })
+const ESTADO_COLOR: Record<string, string> = { recibido: '#7a776f', preparando: '#1050a0', listo: '#9a7a1a', entregado: '#6030a0', cobrado: '#1a7a40', cancelado: '#aa2020' }
+const b = (v?: 'gold' | 'red' | 'green'): React.CSSProperties => ({ padding: '8px 12px', borderRadius: 6, border: `1px solid ${v === 'gold' ? 'var(--gold)' : v === 'red' ? 'rgba(190,50,50,.25)' : v === 'green' ? 'rgba(30,140,70,.25)' : 'var(--border)'}`, background: v === 'gold' ? 'var(--gold)' : v === 'red' ? 'rgba(190,50,50,.10)' : v === 'green' ? 'rgba(30,140,70,.10)' : 'var(--card)', color: v === 'gold' ? '#0f0f0f' : v === 'red' ? '#aa2020' : v === 'green' ? '#1a7a40' : 'var(--text)', cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif' })
 const lbl: React.CSSProperties = { fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 4 }
 
 type CartItem = { id: number; nombre: string; pv: number; qty: number }
@@ -107,7 +107,7 @@ export function PedidosClient() {
   const print = () => { const pa = document.getElementById('print-area'); if (pa) { pa.innerHTML = printHTML; window.print() } }
   const pendientes = pedidos.filter(p => !['cobrado', 'cancelado'].includes(p.estado)).length
   const hoyTotal = pedidos.filter(p => p.fecha === today()).reduce((s, p) => s + (p.total || 0), 0)
-  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: '16px' }
+  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: '16px' }
   const mbox = (wide?: boolean): React.CSSProperties => ({ background: 'var(--card)', border: '1px solid var(--gold-d)', borderRadius: 12, padding: 22, width: '100%', maxWidth: wide ? 800 : 520, maxHeight: '88vh', overflowY: 'auto', boxSizing: 'border-box' as const })
 
   return (
@@ -116,7 +116,7 @@ export function PedidosClient() {
 
       {/* Métricas */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 10, marginBottom: 16 }}>
-        {[['Total', String(pedidos.length), ''], ['Activos', String(pendientes), '#d95f5f'], ['Cobrados', String(pedidos.filter(p => p.estado === 'cobrado').length), '#4caf7d'], ['Hoy', fmt(hoyTotal), '']].map(([l, v, c]) => (
+        {[['Total', String(pedidos.length), ''], ['Activos', String(pendientes), '#aa2020'], ['Cobrados', String(pedidos.filter(p => p.estado === 'cobrado').length), '#1a7a40'], ['Hoy', fmt(hoyTotal), '']].map(([l, v, c]) => (
           <div key={l} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}>
             <div style={{ fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 5 }}>{l}</div>
             <div style={{ fontSize: 20, color: (c as string) || 'var(--gold)' }}>{v}</div>
@@ -142,7 +142,7 @@ export function PedidosClient() {
                 {badgeEstado(p.estado)}
               </div>
               <div style={{ fontSize: 14, marginBottom: 4 }}>{p.cliente}</div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{fechaES(p.fecha)} · {p.canal} · {p.cobrado ? <span style={{ color: '#4caf7d' }}>✓ Cobrado</span> : <span style={{ color: '#d95f5f' }}>Pendiente</span>}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{fechaES(p.fecha)} · {p.canal} · {p.cobrado ? <span style={{ color: '#1a7a40' }}>✓ Cobrado</span> : <span style={{ color: '#aa2020' }}>Pendiente</span>}</div>
               <div style={{ fontSize: 16, color: 'var(--gold)', marginBottom: 10 }}>{fmt(p.total || 0)}</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => { setDetalle(p); setModal('detalle') }} style={{ ...b(), flex: 1 }}>Ver</button>
@@ -165,10 +165,10 @@ export function PedidosClient() {
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--gold)' }}>{p.numero}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{fechaES(p.fecha)}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{p.cliente}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 10, background: 'rgba(91,155,213,.12)', color: '#5b9bd5', border: '1px solid rgba(91,155,213,.25)' }}>{p.canal}</span></td>
+                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 10, background: 'rgba(30,100,180,.10)', color: '#1050a0', border: '1px solid rgba(30,100,180,.25)' }}>{p.canal}</span></td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--gold)' }}>{fmt(p.total || 0)}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{badgeEstado(p.estado)}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{p.cobrado ? <span style={{ color: '#4caf7d', fontSize: 12 }}>✓</span> : <span style={{ color: '#d95f5f', fontSize: 12 }}>Pend.</span>}</td>
+                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{p.cobrado ? <span style={{ color: '#1a7a40', fontSize: 12 }}>✓</span> : <span style={{ color: '#aa2020', fontSize: 12 }}>Pend.</span>}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><div style={{ display: 'flex', gap: 4 }}><button onClick={() => { setDetalle(p); setModal('detalle') }} style={{ ...b(), padding: '4px 8px', fontSize: 11 }}>Ver</button><button onClick={() => avanzar(p.id, p.estado)} style={{ padding:'4px 8px', fontSize:10, borderRadius:6, cursor:'pointer', fontFamily:'Georgia,serif', border:'1px solid rgba(201,162,39,.3)', background:'rgba(201,162,39,.1)', color:'var(--gold)' }}>
                         {p.estado==='recibido'?'Preparar':p.estado==='preparando'?'Listo':p.estado==='listo'?'Entregar':p.estado==='entregado'?'Cobrar':'→'}
                       </button></div></td>
@@ -204,7 +204,7 @@ export function PedidosClient() {
                   <div style={{ flex: 1 }}>{i.nombre}</div>
                   <span style={{ color: 'var(--muted)' }}>{fmtN(i.qty, 3)} kg</span>
                   <div style={{ color: 'var(--gold)' }}>{fmt(i.pv * i.qty)}</div>
-                  <button onClick={() => setFItems(prev => prev.filter(x => x.id !== i.id))} style={{ color: '#d95f5f', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>✕</button>
+                  <button onClick={() => setFItems(prev => prev.filter(x => x.id !== i.id))} style={{ color: '#aa2020', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>✕</button>
                 </div>
               ))}
               <div style={{ textAlign: 'right', marginTop: 8, color: 'var(--gold)', fontSize: 16 }}>Total: {fmt(totalFItems)}</div>

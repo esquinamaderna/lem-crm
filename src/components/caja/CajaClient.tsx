@@ -81,12 +81,12 @@ export function CajaClient() {
     if (pa) { pa.innerHTML = html; window.print() }
   }
 
-  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,.82)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: 16 }
+  const overlay: React.CSSProperties = { display: 'flex', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, alignItems: 'center', justifyContent: 'center', padding: 16 }
 
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, marginBottom: 16 }}>
-        {[['Ingresos hoy', fmt(ingresos), '#4caf7d'], ['Egresos hoy', fmt(egresos), '#d95f5f'], ['Neto hoy', fmt(ingresos - egresos), ''], ['Movimientos', String(movs.length), '']].map(([l, v, c]) => (
+        {[['Ingresos hoy', fmt(ingresos), '#1a7a40'], ['Egresos hoy', fmt(egresos), '#aa2020'], ['Neto hoy', fmt(ingresos - egresos), ''], ['Movimientos', String(movs.length), '']].map(([l, v, c]) => (
           <div key={l} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}>
             <div style={{ fontSize: 10, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 5 }}>{l}</div>
             <div style={{ fontSize: 20, color: c || 'var(--gold)' }}>{v}</div>
@@ -118,7 +118,7 @@ export function CajaClient() {
                     <div>{m.concepto}</div>
                     <div style={{ fontSize: 10, color: 'var(--dim)' }}>{m.hora}</div>
                   </div>
-                  <div style={{ color: m.tipo === 'ingreso' ? '#4caf7d' : '#d95f5f', fontWeight: 'normal' }}>
+                  <div style={{ color: m.tipo === 'ingreso' ? '#1a7a40' : '#aa2020', fontWeight: 'normal' }}>
                     {m.tipo === 'ingreso' ? '+' : '-'}{m.monto > 0 ? fmt(m.monto) : '$0'}
                   </div>
                 </div>
@@ -134,9 +134,9 @@ export function CajaClient() {
               {semanal.map(d => (
                 <tr key={d.dia} style={{ background: d.fecha === today() ? 'rgba(201,162,39,.05)' : 'transparent' }}>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontWeight: d.fecha === today() ? 'bold' : 'normal' }}>{d.dia}{d.fecha === today() ? ' ◀' : ''}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: '#4caf7d' }}>{fmt(d.ing)}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: '#d95f5f' }}>{fmt(d.eg)}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: d.ing - d.eg >= 0 ? '#4caf7d' : '#d95f5f' }}>{fmt(d.ing - d.eg)}</td>
+                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: '#1a7a40' }}>{fmt(d.ing)}</td>
+                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: '#aa2020' }}>{fmt(d.eg)}</td>
+                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: d.ing - d.eg >= 0 ? '#1a7a40' : '#aa2020' }}>{fmt(d.ing - d.eg)}</td>
                 </tr>
               ))}
             </tbody>

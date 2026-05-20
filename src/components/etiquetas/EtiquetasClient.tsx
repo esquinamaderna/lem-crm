@@ -170,7 +170,7 @@ function EtiquetasInner() {
 
         {prod && venceFmt && (
           <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
-            Vence: <strong style={{ color: '#d95f5f' }}>{venceFmt}</strong> ({prod.vida_util_dias} días desde producción)
+            Vence: <strong style={{ color: '#aa2020' }}>{venceFmt}</strong> ({prod.vida_util_dias} días desde producción)
           </div>
         )}
 

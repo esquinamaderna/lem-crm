@@ -57,8 +57,8 @@ export const CAT_BADGE: Record<string, string> = {
 }
 
 export const CAT_COLOR: Record<string, string> = {
-  VACUNO: '#c0392b', CERDO: '#e07a2b', POLLO: '#c9a227',
-  PAPAS: '#4caf7d', JUMBALAY: '#9b72d4', PACKS: '#5b9bd5',
+  VACUNO: '#b02a1f', CERDO: '#a85010', POLLO: '#9a7a1a',
+  PAPAS: '#1a7a40', JUMBALAY: '#6030a0', PACKS: '#1050a0',
 }
 
 export const ESTADO_PED_CLASS: Record<string, string> = {
