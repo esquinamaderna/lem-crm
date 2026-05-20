@@ -72,6 +72,7 @@ export function DashboardClient() {
   const [periodo, setPeriodo] = useState(periodoActual())
   const [costos, setCostos] = useState<CostoFijo[]>([])
   const [ventas, setVentas] = useState<VentaMes[]>([])
+  const [ventasPorMedio, setVentasPorMedio] = useState<{medio_pago: string, total: number}[]>([])
   const [pctMP, setPctMP] = useState(30)
   const [tab, setTab] = useState<'resumen' | 'costos' | 'equilibrio'>('resumen')
   const [loading, setLoading] = useState(true)
@@ -86,18 +87,35 @@ export function DashboardClient() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: c }, { data: v }] = await Promise.all([
+    const [{ data: c }, { data: v }, { data: vm }] = await Promise.all([
       supabase.from('costos_fijos_mensuales').select('*').eq('periodo', periodo).order('categoria').order('concepto'),
       supabase.from('ventas').select('total, fecha').gte('fecha', periodo + '-01').lte('fecha', periodo + '-31'),
+      supabase.from('ventas').select('medio_pago, total').gte('fecha', periodo + '-01').lte('fecha', periodo + '-31'),
     ])
     setCostos((c || []) as CostoFijo[])
     setVentas((v || []) as VentaMes[])
+    const medios = (vm || []) as {medio_pago: string, total: number}[]
+    setVentasPorMedio(medios)
+    // Calcular % MP automáticamente desde ventas reales
+    if (medios.length > 0) {
+      const totalVtas = medios.reduce((s, v) => s + v.total, 0)
+      const totalMP = medios.filter(v => v.medio_pago === 'MercadoPago').reduce((s, v) => s + v.total, 0)
+      if (totalVtas > 0) setPctMP(Math.round(totalMP / totalVtas * 100))
+    }
     setLoading(false)
   }, [periodo])
 
   useEffect(() => { load() }, [load])
 
   // ── Cálculos ──
+  // Estadísticas de medios de pago calculadas automáticamente
+  const mediosPago = ventasPorMedio.reduce((acc, v) => {
+    acc[v.medio_pago] = (acc[v.medio_pago] || 0) + v.total
+    return acc
+  }, {} as Record<string, number>)
+  const totalVentasMedio = Object.values(mediosPago).reduce((s, v) => s + v, 0)
+  const pctMPReal = totalVentasMedio > 0 ? Math.round((mediosPago['MercadoPago'] || 0) / totalVentasMedio * 100) : null
+
   const totalFijo     = costos.filter(c => c.categoria === 'fijo').reduce((s, c) => s + c.monto, 0)
   const totalVariable = costos.filter(c => c.categoria === 'variable').reduce((s, c) => s + c.monto, 0)
   const totalOperativo = costos.filter(c => c.categoria === 'operativo').reduce((s, c) => s + c.monto, 0)
@@ -189,9 +207,17 @@ export function DashboardClient() {
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>MP:</span>
-            <input type="number" value={pctMP} onChange={e => setPctMP(parseInt(e.target.value))} min={0} max={100} style={{ width: 60, fontSize: 12, padding: '4px 8px' }} />
-            <span>%</span>
+            {pctMPReal !== null ? (
+              <span style={{ background: 'rgba(30,100,180,.08)', border: '1px solid rgba(30,100,180,.25)', borderRadius: 6, padding: '4px 10px', color: '#1050a0', fontSize: 12 }}>
+                MP real: <strong>{pctMPReal}%</strong>
+              </span>
+            ) : (
+              <>
+                <span>MP estimado:</span>
+                <input type="number" value={pctMP} onChange={e => setPctMP(parseInt(e.target.value))} min={0} max={100} style={{ width: 60, fontSize: 12, padding: '4px 8px' }} />
+                <span>%</span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -437,6 +463,36 @@ export function DashboardClient() {
               La última fila "Mix equilibrado" asume un FC promedio del 47% y precio promedio de $14.500/kg. Es el escenario más realista con un mix variado de productos.
             </div>
           </div>
+
+          {/* Estadísticas medios de pago */}
+          {ventasPorMedio.length > 0 && (
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)', marginBottom: 16 }}>
+              <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>Medios de pago — {periodoLabel(periodo)}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 10 }}>
+                {Object.entries(mediosPago).sort((a,b) => b[1]-a[1]).map(([medio, total]) => {
+                  const pct = totalVentasMedio > 0 ? (total / totalVentasMedio * 100) : 0
+                  const esMP = medio === 'MercadoPago'
+                  return (
+                    <div key={medio} style={{ background: 'var(--bg)', borderRadius: 6, padding: '10px 12px', border: `1px solid ${esMP ? 'rgba(30,100,180,.25)' : 'var(--border)'}` }}>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{medio}</div>
+                      <div style={{ fontSize: 16, fontWeight: 'bold', color: esMP ? '#1050a0' : 'var(--text)' }}>{fmt(total)}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{pct.toFixed(1)}% del total</div>
+                      {esMP && <div style={{ fontSize: 11, color: '#aa2020', marginTop: 3 }}>Comisión: {fmt(total * MP_TASA)}</div>}
+                      {/* Barra de proporción */}
+                      <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, marginTop: 6 }}>
+                        <div style={{ height: '100%', borderRadius: 2, width: pct + '%', background: esMP ? '#1050a0' : '#1a7a40' }} />
+                      </div>
+                    </div>
+                  )
+                })}
+                <div style={{ background: 'var(--bg)', borderRadius: 6, padding: '10px 12px', border: '1px solid rgba(154,122,26,.25)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Comisión MP total</div>
+                  <div style={{ fontSize: 16, fontWeight: 'bold', color: '#aa2020' }}>{fmt((mediosPago['MercadoPago'] || 0) * MP_TASA)}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>7.24% efectivo s/ventas MP</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Alerta si los costos no están cargados */}
           {costos.length === 0 && (
