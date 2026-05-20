@@ -60,6 +60,7 @@ export interface Producto {
   instrucciones?: string
   receta?: string[] | string
   activo: boolean
+  visible_catalogo: boolean
   created_at?: string
   updated_at?: string
 }

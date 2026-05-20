@@ -68,3 +68,8 @@ export const ESTADO_PED_CLASS: Record<string, string> = {
 
 export const ESTADOS_PEDIDO = ['recibido', 'preparando', 'listo', 'entregado', 'cobrado'] as const
 export type EstadoPedido = (typeof ESTADOS_PEDIDO)[number]
+
+// Redondear siempre hacia arriba al múltiplo de $500 más cercano
+export function round500(n: number): number {
+  return Math.ceil(n / 500) * 500
+}

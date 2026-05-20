@@ -1,16 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { fmt, fmtN, today, fechaES, dateAddISO } from '@/lib/utils'
+import { fmt, fmtN, today, fechaES, dateAddISO, round500 } from '@/lib/utils'
 import type { Producto } from '@/types/database'
 import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 import { useRouter } from 'next/navigation'
 
 // ── Redondeo al múltiplo de 500 más cercano ──
-function round500(n: number): number {
-  return Math.round(n / 500) * 500
-}
-
 // ── Recetas con costos base por ingrediente ──
 interface Ing { nombre: string; qty: number; unidad: 'kg' | 'lts' | 'u'; precio: number }
 interface Receta {
@@ -665,7 +661,7 @@ export function FichasClient() {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 'bold', color: 'var(--gold)' }}>Impacto en precios de venta</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-                    Los precios de venta se calculan manteniendo el FC% actual de cada producto. Redondeados a $500.
+                    Los precios de venta se calculan manteniendo el FC% actual. Redondeados siempre hacia arriba al múltiplo de $500 siguiente (ej: $14.851 → $15.000, $25.691 → $26.000).
                   </div>
                 </div>
                 <button onClick={() => setShowImpacto(false)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}>✕</button>

@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { fmt, fmtN, CAT_COLOR } from '@/lib/utils'
+import { fmt, fmtN, CAT_COLOR, round500 } from '@/lib/utils'
 import type { Producto } from '@/types/database'
 import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 

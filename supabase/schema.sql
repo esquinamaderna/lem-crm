@@ -168,3 +168,6 @@ insert into productos (nombre, categoria, precio_venta, costo, stock_kg, vida_ut
 ('Chutney Agridulce Jumbalay','JUMBALAY',14000,8000,14.0,180,'Sin refrigeración hasta abrir.','["Producto de reventa"]'),
 ('Picada Mundialera 2/3 pax','PACKS',38000,12800,2.0,3,'Solo por pedido anticipado 48hs. Ribs al horno, embutidos a la parrilla.','["Producir ribs 48hs antes","Preparar quesos al vacío","Armar zona fría y zona ambiente","Incluir tarjeta con instrucciones","Etiquetar pack completo"]'),
 ('Picada Mundialera 4/6 pax','PACKS',65000,31800,1.0,3,'Solo por pedido anticipado 48hs. Pack premium con frasquito de aceite LEM.','["Producir ribs + panceta 48hs antes","Laminar salamín fino 150g","Preparar frasquito aceite oliva con etiqueta LEM","Armar caja grande (zona fría / zona ambiente)","Incluir tarjeta A5 premium con maridaje"]');
+
+-- ── Agregar campo visible en catálogo público ──
+ALTER TABLE productos ADD COLUMN IF NOT EXISTS visible_catalogo boolean NOT NULL DEFAULT false;
