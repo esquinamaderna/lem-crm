@@ -74,7 +74,7 @@ export function DashboardClient() {
   const [ventas, setVentas] = useState<VentaMes[]>([])
   const [ventasPorMedio, setVentasPorMedio] = useState<{medio_pago: string, total: number}[]>([])
   const [pctMP, setPctMP] = useState(30)
-  const [tab, setTab] = useState<'resumen' | 'costos' | 'equilibrio'>('resumen')
+  const [tab, setTab] = useState<'resumen' | 'costos' | 'equilibrio' | 'compras'>('resumen')
   const [loading, setLoading] = useState(true)
 
   // Form nuevo costo
@@ -84,6 +84,7 @@ export function DashboardClient() {
   const [fNotas, setFNotas] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  const [ajustesCompra, setAjustesCompra] = useState<Record<string, number>>({})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -227,6 +228,7 @@ export function DashboardClient() {
         <button style={tabStyle('resumen')} onClick={() => setTab('resumen')}>📊 Resumen del mes</button>
         <button style={tabStyle('costos')} onClick={() => setTab('costos')}>📋 Cargar costos</button>
         <button style={tabStyle('equilibrio')} onClick={() => setTab('equilibrio')}>⚖ Punto de equilibrio</button>
+        <button style={tabStyle('compras')} onClick={() => setTab('compras')}>🛒 Proyección de compras</button>
       </div>
 
       {loading && <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)', fontSize: 13 }}>Cargando datos...</div>}
@@ -234,6 +236,89 @@ export function DashboardClient() {
       {/* ══ RESUMEN ══ */}
       {!loading && tab === 'resumen' && (
         <div>
+          {/* CASCADA DE RESULTADO — el número más importante, bien grande */}
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, marginBottom: 16, boxShadow: 'var(--shadow)' }}>
+
+            {/* Fila 1: Ventas */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 12, borderBottom: '1px solid var(--borderl)', marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>Ventas del mes</div>
+                <div style={{ fontSize: 12, color: 'var(--dim)' }}>{ventas.length} transacciones registradas</div>
+              </div>
+              <div style={{ fontSize: 32, color: 'var(--gold)', fontWeight: 'normal' }}>{fmt(ventasTotalMes)}</div>
+            </div>
+
+            {/* Fila 2: Materia prima */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 12, borderBottom: '1px solid var(--borderl)', marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>− Materia prima (FC {(FC_PROM*100).toFixed(0)}%)</div>
+                <div style={{ fontSize: 12, color: 'var(--dim)' }}>Costo de producción de lo vendido</div>
+              </div>
+              <div style={{ fontSize: 24, color: '#aa2020' }}>−{fmt(ventasTotalMes * FC_PROM)}</div>
+            </div>
+
+            {/* Fila 3: Margen bruto */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 12, borderBottom: '2px solid var(--border)', marginBottom: 12, background: 'var(--bg)', margin: '-4px -4px 12px -4px', padding: '10px 14px', borderRadius: 6 }}>
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>= Margen bruto</div>
+                <div style={{ fontSize: 12, color: '#aa2020' }}>⚠ Esto NO es la ganancia — todavía hay que pagar los gastos</div>
+              </div>
+              <div style={{ fontSize: 26, color: 'var(--text)' }}>{fmt(margenBruto)}</div>
+            </div>
+
+            {/* Fila 4: Costos fijos */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 12, borderBottom: '1px solid var(--borderl)', marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>− Costos fijos</div>
+                <div style={{ fontSize: 12, color: 'var(--dim)' }}>Alquiler · Sueldos · Internet · Monotributo · Seguros</div>
+              </div>
+              <div style={{ fontSize: 22, color: '#aa2020' }}>−{fmt(totalFijo)}</div>
+            </div>
+
+            {/* Fila 5: Comisión MP */}
+            {costoMPReal > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 12, borderBottom: '1px solid var(--borderl)', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>− Comisión MercadoPago</div>
+                  <div style={{ fontSize: 12, color: 'var(--dim)' }}>{pctMPReal ?? pctMP}% de ventas × 7.24% efectivo</div>
+                </div>
+                <div style={{ fontSize: 22, color: '#aa2020' }}>−{fmt(costoMPReal)}</div>
+              </div>
+            )}
+
+            {/* Fila 6: Gastos variables y operativos */}
+            {(totalVariable + totalOperativo) > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 12, borderBottom: '1px solid var(--borderl)', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 4 }}>− Gastos variables y operativos</div>
+                  <div style={{ fontSize: 12, color: 'var(--dim)' }}>Embalajes · Reparaciones · Mantenimiento</div>
+                </div>
+                <div style={{ fontSize: 22, color: '#aa2020' }}>−{fmt(totalVariable + totalOperativo)}</div>
+              </div>
+            )}
+
+            {/* RESULTADO NETO — el número más importante */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 20px', borderRadius: 10, marginTop: 8, background: enNegros ? 'rgba(26,122,64,.08)' : 'rgba(170,32,32,.06)', border: `2px solid ${enNegros ? 'rgba(26,122,64,.3)' : 'rgba(170,32,32,.3)'}` }}>
+              <div>
+                <div style={{ fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', color: enNegros ? '#1a7a40' : '#aa2020', marginBottom: 6 }}>= GANANCIA REAL DEL MES</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                  {enNegros
+                    ? `✓ El negocio está generando beneficio real este mes`
+                    : `✗ El negocio aún no cubre todos sus costos este mes`}
+                </div>
+                {ventasTotalMes === 0 && <div style={{ fontSize: 12, color: 'var(--dim)', marginTop: 4 }}>Sin ventas registradas aún — este es el modelo proyectado</div>}
+              </div>
+              <div style={{ fontSize: 48, fontWeight: 'bold', color: enNegros ? '#1a7a40' : '#aa2020', letterSpacing: -1 }}>
+                {enNegros ? '+' : ''}{fmt(resultadoNeto)}
+              </div>
+            </div>
+
+            {/* Nota educativa */}
+            <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(154,122,26,.06)', border: '1px solid rgba(154,122,26,.2)', borderRadius: 8, fontSize: 12, color: 'var(--muted)' }}>
+              💡 <strong style={{ color: 'var(--text)' }}>FC 45% no significa ganar el 55%.</strong> Significa que el 45% del precio de venta es costo de producción (materia prima). Del 55% restante (margen bruto) todavía hay que pagar sueldos, alquiler, servicios, comisiones y todos los gastos operativos del negocio.
+            </div>
+          </div>
+
           {/* Barra de progreso al equilibrio */}
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 16, boxShadow: 'var(--shadow)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
@@ -255,52 +340,41 @@ export function DashboardClient() {
             )}
             {faltaParaEq === 0 && ventasTotalMes > 0 && (
               <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(26,122,64,.08)', border: '1px solid rgba(26,122,64,.2)', borderRadius: 6, fontSize: 12, color: '#1a7a40' }}>
-                ✓ El negocio está en positivo este mes. Resultado neto: <strong>{fmt(resultadoNeto)}</strong>
+                ✓ El negocio cubre sus costos. Ganancia neta acumulada: <strong>{fmt(resultadoNeto)}</strong>
               </div>
             )}
           </div>
 
-          {/* KPIs */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10, marginBottom: 16 }}>
-            {kpi('Ventas del mes', fmt(ventasTotalMes), 'var(--gold)')}
-            {kpi('Costos cargados', fmt(totalCostosReales), '#aa2020')}
-            {kpi('Margen bruto', fmt(margenBruto), margenBruto > totalCostosReales ? '#1a7a40' : '#aa2020')}
-            {kpi('Resultado neto', fmt(resultadoNeto), enNegros ? '#1a7a40' : '#aa2020')}
-            {kpi('Punto equilibrio', fmt(puntoEq), 'var(--text)')}
-            {kpi('Proyección cierre', fmt(proyeccionMes), proyeccionMes >= puntoEq ? '#1a7a40' : '#aa2020', 'basado en ritmo actual')}
-          </div>
-
-          {/* Desglose costos */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12, marginBottom: 16 }}>
-            {(['fijo', 'variable', 'operativo'] as CatFijo[]).map(cat => {
-              const items = costos.filter(c => c.categoria === cat)
-              const total = items.reduce((s, c) => s + c.monto, 0)
-              return (
-                <div key={cat} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: CAT_COLOR[cat] }}>{CAT_LABEL[cat]}</div>
-                    <div style={{ fontSize: 15, fontWeight: 'bold', color: CAT_COLOR[cat] }}>{fmt(total)}</div>
-                  </div>
-                  {items.length === 0
-                    ? <div style={{ fontSize: 12, color: 'var(--dim)', textAlign: 'center', padding: '10px 0' }}>Sin costos cargados</div>
-                    : items.map(c => (
-                      <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--borderl)' }}>
-                        <span style={{ color: 'var(--muted)' }}>{c.concepto}</span>
-                        <span>{fmt(c.monto)}</span>
+          {/* Estadísticas medios de pago */}
+          {ventasPorMedio.length > 0 && (
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)', marginBottom: 16 }}>
+              <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>Medios de pago — {periodoLabel(periodo)}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 10 }}>
+                {Object.entries(mediosPago).sort((a,b) => b[1]-a[1]).map(([medio, total]) => {
+                  const pct = totalVentasMedio > 0 ? (total / totalVentasMedio * 100) : 0
+                  const esMP = medio === 'MercadoPago'
+                  return (
+                    <div key={medio} style={{ background: 'var(--bg)', borderRadius: 6, padding: '10px 12px', border: `1px solid ${esMP ? 'rgba(30,100,180,.25)' : 'var(--border)'}` }}>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>{medio}</div>
+                      <div style={{ fontSize: 16, fontWeight: 'bold', color: esMP ? '#1050a0' : 'var(--text)' }}>{fmt(total)}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{pct.toFixed(1)}% del total</div>
+                      {esMP && <div style={{ fontSize: 11, color: '#aa2020', marginTop: 3 }}>Comisión: {fmt(total * MP_TASA)}</div>}
+                      <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, marginTop: 6 }}>
+                        <div style={{ height: '100%', borderRadius: 2, width: pct + '%', background: esMP ? '#1050a0' : '#1a7a40' }} />
                       </div>
-                    ))}
-                  {cat === 'variable' && costoMPReal > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--borderl)', color: 'var(--muted)' }}>
-                      <span>Comisión MP ({pctMP}%)</span>
-                      <span style={{ fontStyle: 'italic' }}>{fmt(costoMPReal)} (auto)</span>
                     </div>
-                  )}
+                  )
+                })}
+                <div style={{ background: 'var(--bg)', borderRadius: 6, padding: '10px 12px', border: '1px solid rgba(154,122,26,.25)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Comisión MP total</div>
+                  <div style={{ fontSize: 16, fontWeight: 'bold', color: '#aa2020' }}>{fmt((mediosPago['MercadoPago'] || 0) * MP_TASA)}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>7.24% efectivo s/ventas MP</div>
                 </div>
-              )
-            })}
-          </div>
+              </div>
+            </div>
+          )}
 
-          {/* Alertas */}
+          {/* Alerta costos no cargados */}
           {costos.length === 0 && (
             <div style={{ padding: '12px 16px', background: 'rgba(154,122,26,.08)', border: '1px solid rgba(154,122,26,.25)', borderRadius: 8, fontSize: 13, color: 'var(--gold)', marginBottom: 12 }}>
               No hay costos cargados para {periodoLabel(periodo)}.
@@ -503,6 +577,134 @@ export function DashboardClient() {
           )}
         </div>
       )}
+      {/* ══ PROYECCIÓN DE COMPRAS ══ */}
+      {!loading && tab === 'compras' && (
+        <div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16, padding: '10px 14px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8 }}>
+            Basado en las ventas del período seleccionado. Ajustá las cantidades según lo que planificás producir la próxima semana.
+          </div>
+
+          {/* Tabla de ingredientes proyectados */}
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)', marginBottom: 16 }}>
+            <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 14 }}>Materia prima proyectada para próxima producción</div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr>{['Ingrediente', 'Precio actual', 'Kg proyectados (ventas)', 'Ajuste manual', 'Kg a comprar', 'Costo estimado'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '7px 10px', fontSize: 10, color: 'var(--muted)', borderBottom: '1px solid var(--border)', letterSpacing: 1, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {[
+                    { ing: 'Pechuga de pollo',          precio: 6700,  kgPorMillon: 8.5  },
+                    { ing: 'Recortes de pechuga',       precio: 6700,  kgPorMillon: 3.0  },
+                    { ing: 'Nalga (fileteada)',          precio: 24000, kgPorMillon: 1.5  },
+                    { ing: 'Peceto (fileteado)',         precio: 11699, kgPorMillon: 1.0  },
+                    { ing: 'Carré de cerdo',            precio: 11000, kgPorMillon: 1.8  },
+                    { ing: 'Ribs de cerdo',             precio: 5300,  kgPorMillon: 4.0  },
+                    { ing: 'Pan rallado',               precio: 1696,  kgPorMillon: 5.5  },
+                    { ing: 'Pan rallado Crunch',        precio: 4180,  kgPorMillon: 1.5  },
+                    { ing: 'Huevos frescos (u)',        precio: 196.67,kgPorMillon: 60   },
+                    { ing: 'Caritas congeladas',        precio: 7444,  kgPorMillon: 3.5  },
+                    { ing: 'Papas bastón congeladas',  precio: 4333,  kgPorMillon: 5.0  },
+                    { ing: 'Papas Noisette congeladas', precio: 7300,  kgPorMillon: 3.0  },
+                    { ing: 'Nuggets crocantes (Sadia)', precio: 9200,  kgPorMillon: 2.5  },
+                    { ing: 'Film / envase unitario',    precio: 81.25, kgPorMillon: 120  },
+                  ].map(row => {
+                    const baseRef = ventasTotalMes > 0 ? ventasTotalMes : puntoEq
+                    const kgProyectado = parseFloat((row.kgPorMillon * baseRef / 1000000).toFixed(1))
+                    const ajuste = ajustesCompra[row.ing] ?? 0
+                    const kgFinal = Math.max(0, parseFloat((kgProyectado + ajuste).toFixed(1)))
+                    const costo = kgFinal * row.precio
+                    const esProteina = ['Pechuga de pollo','Recortes de pechuga','Nalga (fileteada)','Peceto (fileteado)','Carré de cerdo','Ribs de cerdo','Caritas congeladas','Papas bastón congeladas','Papas Noisette congeladas','Nuggets crocantes (Sadia)'].includes(row.ing)
+                    return (
+                      <tr key={row.ing} style={{ background: esProteina ? 'rgba(154,122,26,.03)' : 'transparent' }}>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontWeight: esProteina ? 'bold' : 'normal' }}>
+                          {esProteina && <span style={{ color: 'var(--gold)', marginRight: 6, fontSize: 10 }}>★</span>}
+                          {row.ing}
+                        </td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--muted)' }}>{fmt(row.precio)}</td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--muted)' }}>
+                          {kgProyectado} {row.ing.includes('(u)') || row.ing.includes('envase') ? 'u' : 'kg'}
+                          <div style={{ fontSize: 10, color: 'var(--dim)' }}>
+                            {ventasTotalMes > 0 ? 'basado en ventas reales' : 'basado en punto equilibrio'}
+                          </div>
+                        </td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', width: 120 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <button onClick={() => setAjustesCompra(prev => ({ ...prev, [row.ing]: (prev[row.ing] ?? 0) - 1 }))}
+                              style={{ width: 24, height: 24, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', fontSize: 14 }}>−</button>
+                            <input type="number" value={ajuste}
+                              onChange={e => setAjustesCompra(prev => ({ ...prev, [row.ing]: parseFloat(e.target.value) || 0 }))}
+                              style={{ width: 54, textAlign: 'center', fontSize: 12, padding: '3px 4px' }} />
+                            <button onClick={() => setAjustesCompra(prev => ({ ...prev, [row.ing]: (prev[row.ing] ?? 0) + 1 }))}
+                              style={{ width: 24, height: 24, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer', fontSize: 14 }}>+</button>
+                          </div>
+                        </td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontWeight: 'bold', color: kgFinal > kgProyectado ? '#1050a0' : kgFinal < kgProyectado ? '#aa2020' : 'var(--text)' }}>
+                          {kgFinal} {row.ing.includes('(u)') || row.ing.includes('envase') ? 'u' : 'kg'}
+                        </td>
+                        <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', textAlign: 'right', color: 'var(--gold)', fontWeight: 'bold' }}>
+                          {fmt(costo)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={5} style={{ padding: '12px 10px', fontWeight: 'bold', fontSize: 15 }}>TOTAL A COMPRAR</td>
+                    <td style={{ padding: '12px 10px', textAlign: 'right', fontSize: 20, fontWeight: 'bold', color: 'var(--gold)' }}>
+                      {fmt([
+                        { ing: 'Pechuga de pollo', precio: 6700, kgPorMillon: 8.5 },
+                        { ing: 'Recortes de pechuga', precio: 6700, kgPorMillon: 3.0 },
+                        { ing: 'Nalga (fileteada)', precio: 24000, kgPorMillon: 1.5 },
+                        { ing: 'Peceto (fileteado)', precio: 11699, kgPorMillon: 1.0 },
+                        { ing: 'Carré de cerdo', precio: 11000, kgPorMillon: 1.8 },
+                        { ing: 'Ribs de cerdo', precio: 5300, kgPorMillon: 4.0 },
+                        { ing: 'Pan rallado', precio: 1696, kgPorMillon: 5.5 },
+                        { ing: 'Pan rallado Crunch', precio: 4180, kgPorMillon: 1.5 },
+                        { ing: 'Huevos frescos (u)', precio: 196.67, kgPorMillon: 60 },
+                        { ing: 'Caritas congeladas', precio: 7444, kgPorMillon: 3.5 },
+                        { ing: 'Papas bastón congeladas', precio: 4333, kgPorMillon: 5.0 },
+                        { ing: 'Papas Noisette congeladas', precio: 7300, kgPorMillon: 3.0 },
+                        { ing: 'Nuggets crocantes (Sadia)', precio: 9200, kgPorMillon: 2.5 },
+                        { ing: 'Film / envase unitario', precio: 81.25, kgPorMillon: 120 },
+                      ].reduce((sum, row) => {
+                        const baseRef = ventasTotalMes > 0 ? ventasTotalMes : puntoEq
+                        const kgProyectado = parseFloat((row.kgPorMillon * baseRef / 1000000).toFixed(1))
+                        const ajuste = ajustesCompra[row.ing] ?? 0
+                        const kgFinal = Math.max(0, parseFloat((kgProyectado + ajuste).toFixed(1)))
+                        return sum + kgFinal * row.precio
+                      }, 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          {/* Panel de control de compra */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)' }}>
+              <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Ganancia real proyectada</div>
+              <div style={{ fontSize: 24, color: enNegros ? '#1a7a40' : '#aa2020', fontWeight: 'bold' }}>{fmt(resultadoNeto)}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Después de todos los costos</div>
+            </div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)' }}>
+              <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Ventas del período</div>
+              <div style={{ fontSize: 24, color: 'var(--gold)', fontWeight: 'bold' }}>{fmt(ventasTotalMes)}</div>
+              <div style={{ fontSize: 12, color: 'var(--dim)', marginTop: 4 }}>{ventasTotalMes > 0 ? 'datos reales' : 'sin ventas aún — usando punto equilibrio'}</div>
+            </div>
+            <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)' }}>
+              <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Base de cálculo</div>
+              <div style={{ fontSize: 16, color: 'var(--text)' }}>{ventasTotalMes > 0 ? 'Ventas reales del mes' : 'Punto de equilibrio'}</div>
+              <button onClick={() => setAjustesCompra({})} style={{ marginTop: 8, ...b('red'), padding: '4px 10px', fontSize: 11, width: '100%' }}>Resetear ajustes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
