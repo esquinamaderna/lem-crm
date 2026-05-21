@@ -295,7 +295,7 @@ export function DashboardClient() {
             {periodos.map(p => <option key={p} value={p}>{periodoLabel(p)}</option>)}
           </select>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
             {pctMPReal !== null ? (
               <span style={{ background: 'rgba(30,100,180,.08)', border: '1px solid rgba(30,100,180,.25)', borderRadius: 6, padding: '4px 10px', color: '#1050a0', fontSize: 12 }}>
@@ -309,6 +309,12 @@ export function DashboardClient() {
               </>
             )}
           </div>
+          <button
+            onClick={imprimirResumenMensual}
+            style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif', whiteSpace: 'nowrap' }}
+          >
+            🖨 Imprimir resumen
+          </button>
         </div>
       </div>
 
