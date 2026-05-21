@@ -196,6 +196,95 @@ export function DashboardClient() {
     </div>
   )
 
+
+  function imprimirResumenMensual() {
+    const label = periodoLabel(periodo)
+    const html = `
+      <style>
+        body { font-family: Georgia, serif; color: #111; max-width: 680px; margin: 0 auto; padding: 20px; }
+        h1 { font-size: 22px; font-weight: normal; letter-spacing: 2px; text-transform: uppercase; border-bottom: 2px solid #9a7a1a; padding-bottom: 8px; margin-bottom: 20px; }
+        .subtitulo { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #888; margin-bottom: 6px; }
+        .fila { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+        .fila.negativo { color: #aa2020; }
+        .fila.separador { border-bottom: 2px solid #333; font-weight: bold; font-size: 15px; margin: 4px 0; }
+        .resultado { display: flex; justify-content: space-between; padding: 16px 20px; margin-top: 16px; border-radius: 6px; font-size: 22px; font-weight: bold; }
+        .positivo { background: #e8f5ed; color: #1a7a40; border: 2px solid #1a7a40; }
+        .negativo-box { background: #fceaea; color: #aa2020; border: 2px solid #aa2020; }
+        .nota { font-size: 11px; color: #888; margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee; }
+        .bloque { margin-bottom: 20px; }
+        .medios { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 10px; margin-top: 8px; }
+        .medio-card { border: 1px solid #eee; border-radius: 6px; padding: 10px; }
+        .medio-card .medio-nombre { font-size: 11px; color: #888; margin-bottom: 4px; }
+        .medio-card .medio-monto { font-size: 15px; font-weight: bold; }
+        .medio-card .medio-pct { font-size: 11px; color: #888; }
+        @media print { body { padding: 10mm; } }
+      </style>
+
+      <h1>La Esquina de Maderna — ${label}</h1>
+      <p style="font-size:12px;color:#888;margin-bottom:24px;">Resumen financiero mensual · Generado ${new Date().toLocaleDateString('es-AR')}</p>
+
+      <div class="bloque">
+        <div class="subtitulo">Estado de resultados</div>
+        <div class="fila"><span>Ventas del mes</span><span><strong>${fmt(ventasTotalMes)}</strong></span></div>
+        <div class="fila negativo"><span>− Materia prima (FC ${(FC_PROM*100).toFixed(0)}%)</span><span>−${fmt(ventasTotalMes * FC_PROM)}</span></div>
+        <div class="fila separador"><span>= Margen bruto</span><span>${fmt(margenBruto)}</span></div>
+        <div class="fila negativo"><span>− Costos fijos</span><span>−${fmt(totalFijo)}</span></div>
+        ${costoMPReal > 0 ? `<div class="fila negativo"><span>− Comisión MercadoPago (${pctMPReal ?? pctMP}%)</span><span>−${fmt(costoMPReal)}</span></div>` : ''}
+        ${(totalVariable + totalOperativo) > 0 ? `<div class="fila negativo"><span>− Gastos variables y operativos</span><span>−${fmt(totalVariable + totalOperativo)}</span></div>` : ''}
+        <div class="resultado ${enNegros ? 'positivo' : 'negativo-box'}">
+          <span>GANANCIA REAL DEL MES</span>
+          <span>${enNegros ? '+' : ''}${fmt(resultadoNeto)}</span>
+        </div>
+      </div>
+
+      <div class="bloque">
+        <div class="subtitulo">Punto de equilibrio</div>
+        <div class="fila"><span>Ventas necesarias para cubrir todos los costos</span><span><strong>${fmt(puntoEq)}</strong></span></div>
+        <div class="fila"><span>Ventas reales del mes</span><span>${fmt(ventasTotalMes)}</span></div>
+        <div class="fila"><span>Avance al equilibrio</span><span><strong>${pctAvance.toFixed(1)}%</strong></span></div>
+        <div class="fila"><span>Proyección al cierre del mes</span><span>${fmt(proyeccionMes)}</span></div>
+      </div>
+
+      ${Object.keys(mediosPago).length > 0 ? `
+      <div class="bloque">
+        <div class="subtitulo">Medios de pago</div>
+        <div class="medios">
+          ${Object.entries(mediosPago).sort((a,b)=>b[1]-a[1]).map(([medio, total]) => {
+            const pct = totalVentasMedio > 0 ? (total / totalVentasMedio * 100) : 0
+            const esMP = medio === 'MercadoPago'
+            return `<div class="medio-card">
+              <div class="medio-nombre">${medio}</div>
+              <div class="medio-monto" style="color:${esMP?'#1050a0':'#111'}">${fmt(total)}</div>
+              <div class="medio-pct">${pct.toFixed(1)}% del total</div>
+              ${esMP ? `<div style="font-size:11px;color:#aa2020;margin-top:2px;">Comisión: ${fmt(total * MP_TASA)}</div>` : ''}
+            </div>`
+          }).join('')}
+        </div>
+      </div>` : ''}
+
+      ${costos.length > 0 ? `
+      <div class="bloque">
+        <div class="subtitulo">Detalle de costos — ${label}</div>
+        ${(['fijo','variable','operativo']).map(cat => {
+          const items = costos.filter(c => c.categoria === cat)
+          if (!items.length) return ''
+          const total = items.reduce((s,c) => s + c.monto, 0)
+          return `<div style="margin-bottom:10px;">
+            <div style="font-size:11px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">${CAT_LABEL[cat as CatFijo]} — ${fmt(total)}</div>
+            ${items.map(c => `<div class="fila" style="font-size:13px;"><span style="color:#666;">${c.concepto}</span><span>${fmt(c.monto)}</span></div>`).join('')}
+          </div>`
+        }).join('')}
+      </div>` : ''}
+
+      <div class="nota">
+        💡 FC ${(FC_PROM*100).toFixed(0)}% = el ${(FC_PROM*100).toFixed(0)}% del precio de venta es costo de materia prima. Del ${(100-FC_PROM*100).toFixed(0)}% restante (margen bruto) se pagan todos los gastos operativos del negocio. La ganancia real es lo que queda después de pagar absolutamente todo.
+        <br><br>Generado desde el CRM de La Esquina de Maderna · ${new Date().toLocaleString('es-AR')}
+      </div>
+    `
+    const pa = document.getElementById('print-area')
+    if (pa) { pa.innerHTML = html; window.print() }
+  }
+
   return (
     <div style={{ maxWidth: '100%' }}>
       {/* Header */}
