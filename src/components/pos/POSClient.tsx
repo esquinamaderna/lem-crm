@@ -200,16 +200,38 @@ export function POSClient() {
           <div className="prod-grid">
             {filtered.map(p => {
               const stk = p.stock_kg || 0
-              const col = stk < 2 ? '#aa2020' : stk < 5 ? '#b05010' : '#1a7a40'
+              const sinStock   = stk <= 0
+              const stockBajo  = stk > 0 && stk < 2
+              const stockMedio = stk >= 2 && stk < 5
+              const catCol     = CAT_COLOR[p.categoria] || '#888'
+              const barCol     = sinStock ? '#ccc' : stockBajo ? '#aa2020' : stockMedio ? '#b05010' : '#1a7a40'
+              const cardBorder = sinStock   ? '1px solid #ddd'
+                               : stockBajo  ? '1px solid rgba(170,32,32,.4)'
+                               : stockMedio ? `1px solid ${catCol}66`
+                               : '1px solid var(--border)'
+              const cardBg     = sinStock   ? '#f2f2f2'
+                               : stockBajo  ? 'rgba(170,32,32,.04)'
+                               : stockMedio ? `${catCol}0d`
+                               : 'var(--card)'
               return (
-                <div key={p.id} onClick={() => addToCart(p)} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 11, cursor: 'pointer', position: 'relative', userSelect: 'none' }}>
-                  <div style={{ position: 'absolute', top: 8, right: 8, width: 6, height: 6, borderRadius: '50%', background: CAT_COLOR[p.categoria] || 'var(--dim)' }} />
-                  <div style={{ fontSize: 12, lineHeight: 1.3, marginBottom: 6, paddingRight: 12 }}>{p.nombre}</div>
-                  <div style={{ fontSize: 15, color: 'var(--gold)' }}>{fmt(p.precio_venta)}</div>
-                  <div style={{ fontSize: 10, color: 'var(--dim)', marginTop: 2 }}>Stock: {fmtN(stk)} kg</div>
-                  <div style={{ height: 3, background: 'var(--borderl)', borderRadius: 2, marginTop: 4 }}>
-                    <div style={{ height: '100%', borderRadius: 2, width: `${Math.min(100, stk / 20 * 100)}%`, background: col }} />
+                <div key={p.id}
+                  onClick={() => !sinStock && addToCart(p)}
+                  style={{ background: cardBg, border: cardBorder, borderRadius: 8, padding: 11, cursor: sinStock ? 'not-allowed' : 'pointer', position: 'relative', userSelect: 'none', opacity: sinStock ? 0.55 : 1, transition: 'all .15s' }}>
+                  {/* Punto categoría — más grande */}
+                  <div style={{ position: 'absolute', top: 8, right: 8, width: 11, height: 11, borderRadius: '50%', background: catCol, boxShadow: `0 0 0 2px ${catCol}33` }} />
+                  <div style={{ fontSize: 12, lineHeight: 1.3, marginBottom: 6, paddingRight: 16 }}>{p.nombre}</div>
+                  <div style={{ fontSize: 15, color: sinStock ? '#bbb' : 'var(--gold)' }}>{fmt(p.precio_venta)}</div>
+                  <div style={{ fontSize: 10, marginTop: 2, color: barCol, fontWeight: stockBajo ? 'bold' : 'normal' }}>
+                    {sinStock ? 'Sin stock' : `Stock: ${fmtN(stk)} kg`}
                   </div>
+                  <div style={{ height: 3, background: 'var(--borderl)', borderRadius: 2, marginTop: 4 }}>
+                    <div style={{ height: '100%', borderRadius: 2, width: `${Math.min(100, stk / 20 * 100)}%`, background: barCol }} />
+                  </div>
+                  {sinStock && (
+                    <div style={{ position: 'absolute', inset: 0, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                      <span style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: '#aaa', background: 'rgba(255,255,255,.85)', padding: '2px 8px', borderRadius: 4, border: '1px solid #ddd' }}>Sin stock</span>
+                    </div>
+                  )}
                 </div>
               )
             })}
