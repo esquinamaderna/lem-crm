@@ -281,8 +281,12 @@ export function DashboardClient() {
         <br><br>Generado desde el CRM de La Esquina de Maderna · ${new Date().toLocaleString('es-AR')}
       </div>
     `
-    const pa = document.getElementById('print-area')
-    if (pa) { pa.innerHTML = html; window.print() }
+    const ventana = window.open('', '_blank', 'width=800,height=600')
+    if (!ventana) return
+    ventana.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Resumen ${label}</title></head><body>${html}</body></html>`)
+    ventana.document.close()
+    ventana.focus()
+    setTimeout(() => { ventana.print(); ventana.close() }, 400)
   }
 
   return (
