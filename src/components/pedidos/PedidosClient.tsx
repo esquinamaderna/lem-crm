@@ -160,9 +160,14 @@ export function PedidosClient() {
                 <button onClick={async () => {
               const [{ data: pedidoFresco }, { data: stockFresco }] = await Promise.all([
                 supabase.from('pedidos').select('*, pedido_items(*)').eq('id', p.id).single(),
-                supabase.from('productos').select('*').eq('activo', true),
+                supabase.from('productos').select('id, nombre, stock_kg').eq('activo', true),
               ])
-              if (stockFresco) setProductos(stockFresco)
+              if (stockFresco) {
+                setProductos(stockFresco)
+                const mapa: Record<string, number> = {}
+                stockFresco.forEach((prod: any) => { mapa[prod.nombre.toLowerCase().trim()] = prod.stock_kg })
+                setStockMap(mapa)
+              }
               if (pedidoFresco) setDetalle(pedidoFresco as PedidoConItems)
               else setDetalle(p)
               setModal('detalle')
@@ -191,12 +196,17 @@ export function PedidosClient() {
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{badgeEstado(p.estado)}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{p.cobrado ? <span style={{ color: '#1a7a40', fontSize: 12 }}>✓</span> : <span style={{ color: '#aa2020', fontSize: 12 }}>Pend.</span>}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><div style={{ display: 'flex', gap: 4 }}><button onClick={async () => {
-                          // Recargar pedido completo con ítems frescos + stock actualizado
                           const [{ data: pedidoFresco }, { data: stockFresco }] = await Promise.all([
                             supabase.from('pedidos').select('*, pedido_items(*)').eq('id', p.id).single(),
-                            supabase.from('productos').select('*').eq('activo', true),
+                            supabase.from('productos').select('id, nombre, stock_kg').eq('activo', true),
                           ])
-                          if (stockFresco) setProductos(stockFresco)
+                          if (stockFresco) {
+                            setProductos(stockFresco)
+                            // Mapa nombre→stock para lookup rápido
+                            const mapa: Record<string, number> = {}
+                            stockFresco.forEach((prod: any) => { mapa[prod.nombre.toLowerCase().trim()] = prod.stock_kg })
+                            setStockMap(mapa)
+                          }
                           if (pedidoFresco) setDetalle(pedidoFresco as PedidoConItems)
                           else setDetalle(p)
                           setModal('detalle')
@@ -368,11 +378,11 @@ export function PedidosClient() {
             {['recibido', 'preparando'].includes(detalle.estado) && (detalle.pedido_items || []).length > 0 && (() => {
               // Calcular ítems con stock insuficiente
               const alertas = (detalle.pedido_items || []).map(i => {
-                const prod = productos.find(p =>
-                  p.nombre.toLowerCase().trim() === i.producto_nombre.toLowerCase().trim() ||
-                  p.id === (i as any).producto_id
-                )
-                const stockDisp = prod ? prod.stock_kg : null
+                const key = i.producto_nombre.toLowerCase().trim()
+                // Usar stockMap (cargado al abrir el detalle) o fallback a productos[]
+                const stockDisp = key in stockMap
+                  ? stockMap[key]
+                  : (productos.find(p => p.nombre.toLowerCase().trim() === key)?.stock_kg ?? null)
                 const falta = stockDisp !== null ? parseFloat((i.cantidad_kg - stockDisp).toFixed(2)) : 0
                 return { ...i, stockDisp, falta, sinStock: stockDisp !== null && i.cantidad_kg > stockDisp }
               }).filter(a => a.sinStock)
