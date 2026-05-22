@@ -65,7 +65,7 @@ export function CombosClient() {
       supabase.from('productos').select('*').eq('activo', true).order('nombre'),
     ])
     setCombos((c || []) as Combo[])
-    setProductos((p || []) as Produto[])
+    setProductos((p || []) as Producto[])
   }
 
   // Precio sugerido = suma(componentes) × (1 - descuento%) → ceil 500
