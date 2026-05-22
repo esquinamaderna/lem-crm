@@ -157,7 +157,11 @@ export function PedidosClient() {
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{fechaES(p.fecha)} · {p.canal} · {p.cobrado ? <span style={{ color: '#1a7a40' }}>✓ Cobrado</span> : <span style={{ color: '#aa2020' }}>Pendiente</span>}</div>
               <div style={{ fontSize: 16, color: 'var(--gold)', marginBottom: 10 }}>{fmt(p.total || 0)}</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => { setDetalle(p); setModal('detalle') }} style={{ ...b(), flex: 1 }}>Ver</button>
+                <button onClick={async () => {
+              const { data: stockFresco } = await supabase.from('productos').select('*').eq('activo', true)
+              if (stockFresco) setProductos(stockFresco)
+              setDetalle(p); setModal('detalle')
+            }} style={{ ...b(), flex: 1 }}>Ver</button>
                 <button onClick={() => avanzar(p.id, p.estado)} style={{ ...b('gold'), flex: 1 }}>
                 {p.estado==='recibido'?'▶ Preparar':p.estado==='preparando'?'✓ Listo':p.estado==='listo'?'📦 Entregar':p.estado==='entregado'?'💰 Cobrar':'Avanzar'}
               </button>
@@ -181,7 +185,12 @@ export function PedidosClient() {
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--gold)' }}>{fmt(p.total || 0)}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{badgeEstado(p.estado)}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{p.cobrado ? <span style={{ color: '#1a7a40', fontSize: 12 }}>✓</span> : <span style={{ color: '#aa2020', fontSize: 12 }}>Pend.</span>}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><div style={{ display: 'flex', gap: 4 }}><button onClick={() => { setDetalle(p); setModal('detalle') }} style={{ ...b(), padding: '4px 8px', fontSize: 11 }}>Ver</button><button onClick={() => avanzar(p.id, p.estado)} style={{ padding:'4px 8px', fontSize:10, borderRadius:6, cursor:'pointer', fontFamily:'Georgia,serif', border:'1px solid rgba(201,162,39,.3)', background:'rgba(201,162,39,.1)', color:'var(--gold)' }}>
+                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><div style={{ display: 'flex', gap: 4 }}><button onClick={async () => {
+                          // Refrescar stock antes de mostrar el detalle
+                          const { data: stockFresco } = await supabase.from('productos').select('*').eq('activo', true)
+                          if (stockFresco) setProductos(stockFresco)
+                          setDetalle(p); setModal('detalle')
+                        }} style={{ ...b(), padding: '4px 8px', fontSize: 11 }}>Ver</button><button onClick={() => avanzar(p.id, p.estado)} style={{ padding:'4px 8px', fontSize:10, borderRadius:6, cursor:'pointer', fontFamily:'Georgia,serif', border:'1px solid rgba(201,162,39,.3)', background:'rgba(201,162,39,.1)', color:'var(--gold)' }}>
                         {p.estado==='recibido'?'Preparar':p.estado==='preparando'?'Listo':p.estado==='listo'?'Entregar':p.estado==='entregado'?'Cobrar':'→'}
                       </button></div></td>
                 </tr>
@@ -348,26 +357,51 @@ export function PedidosClient() {
             {/* Alerta de stock insuficiente en detalle del pedido */}
             {['recibido', 'preparando'].includes(detalle.estado) && (() => {
               const itemsSinStock = (detalle.pedido_items || []).filter(i => {
-                const prod = productos.find(p => p.nombre === i.producto_nombre)
-                return prod && i.cantidad_kg > prod.stock_kg
+                // Match por nombre (insensible a mayúsculas) o por producto_id
+                const prod = productos.find(p =>
+                  p.nombre.toLowerCase().trim() === i.producto_nombre.toLowerCase().trim() ||
+                  (i.producto_id && p.id === i.producto_id)
+                )
+                if (!prod) return false // si no encontramos el producto, no alertar
+                return i.cantidad_kg > prod.stock_kg
               })
               if (!itemsSinStock.length) return null
               return (
-                <div style={{ marginBottom: 14, padding: '12px 14px', background: '#fff0f0', border: '2px solid #aa2020', borderRadius: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 18 }}>🚨</span>
-                    <span style={{ fontSize: 13, fontWeight: 'bold', color: '#aa2020', textTransform: 'uppercase' }}>Producción urgente</span>
+                <div style={{ marginBottom: 14, padding: '14px 16px', background: '#fff0f0', border: '2px solid #aa2020', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 20 }}>🚨</span>
+                    <span style={{ fontSize: 14, fontWeight: 'bold', color: '#aa2020', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Producción urgente requerida
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#7a1010', marginBottom: 10 }}>
+                    Stock insuficiente para entregar este pedido:
                   </div>
                   {itemsSinStock.map(i => {
-                    const prod = productos.find(p => p.nombre === i.producto_nombre)
-                    const falta = prod ? parseFloat((i.cantidad_kg - prod.stock_kg).toFixed(2)) : i.cantidad_kg
+                    const prod = productos.find(p =>
+                      p.nombre.toLowerCase().trim() === i.producto_nombre.toLowerCase().trim() ||
+                      (i.producto_id && p.id === i.producto_id)
+                    )
+                    const stockDisp = prod ? prod.stock_kg : 0
+                    const falta = parseFloat((i.cantidad_kg - stockDisp).toFixed(2))
                     return (
-                      <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '5px 0', borderBottom: '1px solid #d98080', color: '#aa2020' }}>
-                        <span><strong>{i.producto_nombre}</strong></span>
-                        <span>Faltan <strong>{fmtN(falta, 2)} kg</strong> a producir</span>
+                      <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#fff', border: '1px solid #d98080', borderRadius: 6, marginBottom: 6 }}>
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: '#aa2020', fontSize: 13 }}>{i.producto_nombre}</div>
+                          <div style={{ fontSize: 11, color: '#7a1010', marginTop: 2 }}>
+                            Pedido: {fmtN(i.cantidad_kg, 2)} kg · Stock actual: {fmtN(stockDisp, 2)} kg
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontSize: 18, fontWeight: 'bold', color: '#aa2020' }}>−{fmtN(falta, 2)} kg</div>
+                          <div style={{ fontSize: 11, color: '#7a1010' }}>a producir</div>
+                        </div>
                       </div>
                     )
                   })}
+                  <div style={{ fontSize: 12, color: '#7a1010', marginTop: 6, padding: '6px 10px', background: 'rgba(170,32,32,.08)', borderRadius: 4 }}>
+                    ⚠ Coordinar producción antes de la entrega.
+                  </div>
                 </div>
               )
             })()}
