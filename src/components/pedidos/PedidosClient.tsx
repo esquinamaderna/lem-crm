@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { fmt, fmtN, today, nowTime, fechaES, dateAddISO, pedNum } from '@/lib/utils'
+import { fmt, fmtN, today, nowTime, fechaES, padNum } from '@/lib/utils'
 import type { Producto } from '@/types/database'
 import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 
@@ -96,7 +96,7 @@ export function PedidosClient() {
     setSaving(true)
     try {
       const { count } = await supabase.from('pedidos').select('*', { count: 'exact', head: true })
-      const num = pedNum((count ?? 0) + 1)
+      const num = padNum((count ?? 0) + 1, 'P', 4)
       const pedido = { numero: num, fecha: today(), hora: nowTime(), cliente: fCli.trim(), telefono: fTel, canal: fCanal, estado: 'recibido' as const, medio_pago: fPago, total: totalFItems, cobrado: false, notas: fNotas }
       const { data: pd, error } = await supabase.from('pedidos').insert(pedido).select().single()
       if (error) { alert('Error: ' + error.message); return }
@@ -174,7 +174,13 @@ export function PedidosClient() {
 
   return (
     <div>
-      <style>{`.ped-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}`}</style>
+      <style>{`
+        .ped-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+        .resp-cards{display:flex;flex-direction:column;gap:10px}
+        .resp-table{display:block}
+        @media(min-width:768px){.resp-cards{display:none!important}}
+        @media(max-width:767px){.resp-table{display:none!important}}
+      `}</style>
 
       {/* Métricas */}
       <div className="ped-grid" style={{ marginBottom:16 }}>
