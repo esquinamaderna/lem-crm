@@ -40,7 +40,7 @@ export function PedidosClient() {
   useEffect(() => { load() }, [filtroEstado])
 
   async function load() {
-    let q = supabase.from('pedidos').select('*, pedido_items(*)').order('created_at', { ascending: false })
+    let q = supabase.from('pedidos').select('*, pedido_items(id, pedido_id, producto_id, producto_nombre, cantidad_kg, precio_unit)').order('created_at', { ascending: false })
     if (filtroEstado) q = q.eq('estado', filtroEstado)
     const { data } = await q
     setPedidos((data || []) as PedidoConItems[])
@@ -159,7 +159,10 @@ export function PedidosClient() {
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={async () => {
               try {
-                const { data: pedidoFresco } = await supabase.from('pedidos').select('*, pedido_items(*)').eq('id', p.id).single()
+                const { data: ped } = await supabase.from('pedidos').select('*').eq('id', p.id).single()
+                const { data: items } = await supabase.from('pedido_items')
+                  .select('id, pedido_id, producto_id, producto_nombre, cantidad_kg, precio_unit')
+                  .eq('pedido_id', p.id)
                 const { data: stockFresco } = await supabase.from('productos').select('id, nombre, stock_kg').eq('activo', true)
                 if (stockFresco) {
                   setProductos(stockFresco)
@@ -167,9 +170,10 @@ export function PedidosClient() {
                   stockFresco.forEach((pr: any) => { mapa[pr.nombre.toLowerCase().trim()] = pr.stock_kg })
                   setStockMap(mapa)
                 }
-                setDetalle((pedidoFresco || p) as PedidoConItems)
+                const pedidoCompleto = { ...(ped || p), pedido_items: items || [] }
+                setDetalle(pedidoCompleto as PedidoConItems)
                 setModal('detalle')
-              } catch { setDetalle(p); setModal('detalle') }
+              } catch (err) { console.error(err); setDetalle(p); setModal('detalle') }
             }} style={{ ...b(), flex: 1 }}>Ver</button>
                 <button onClick={() => avanzar(p.id, p.estado)} style={{ ...b('gold'), flex: 1 }}>
                 {p.estado==='recibido'?'▶ Preparar':p.estado==='preparando'?'✓ Listo':p.estado==='listo'?'📦 Entregar':p.estado==='entregado'?'💰 Cobrar':'Avanzar'}
@@ -196,7 +200,11 @@ export function PedidosClient() {
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{p.cobrado ? <span style={{ color: '#1a7a40', fontSize: 12 }}>✓</span> : <span style={{ color: '#aa2020', fontSize: 12 }}>Pend.</span>}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><div style={{ display: 'flex', gap: 4 }}><button onClick={async () => {
                           try {
-                            const { data: pedidoFresco } = await supabase.from('pedidos').select('*, pedido_items(*)').eq('id', p.id).single()
+                            // Cargar pedido y items por separado (evita 400 del join)
+                            const { data: ped } = await supabase.from('pedidos').select('*').eq('id', p.id).single()
+                            const { data: items } = await supabase.from('pedido_items')
+                              .select('id, pedido_id, producto_id, producto_nombre, cantidad_kg, precio_unit')
+                              .eq('pedido_id', p.id)
                             const { data: stockFresco } = await supabase.from('productos').select('id, nombre, stock_kg').eq('activo', true)
                             if (stockFresco) {
                               setProductos(stockFresco)
@@ -204,9 +212,10 @@ export function PedidosClient() {
                               stockFresco.forEach((pr: any) => { mapa[pr.nombre.toLowerCase().trim()] = pr.stock_kg })
                               setStockMap(mapa)
                             }
-                            setDetalle((pedidoFresco || p) as PedidoConItems)
+                            const pedidoCompleto = { ...(ped || p), pedido_items: items || [] }
+                            setDetalle(pedidoCompleto as PedidoConItems)
                             setModal('detalle')
-                          } catch { setDetalle(p); setModal('detalle') }
+                          } catch (err) { console.error(err); setDetalle(p); setModal('detalle') }
                         }} style={{ ...b(), padding: '4px 8px', fontSize: 11 }}>Ver</button><button onClick={() => avanzar(p.id, p.estado)} style={{ padding:'4px 8px', fontSize:10, borderRadius:6, cursor:'pointer', fontFamily:'Georgia,serif', border:'1px solid rgba(201,162,39,.3)', background:'rgba(201,162,39,.1)', color:'var(--gold)' }}>
                         {p.estado==='recibido'?'Preparar':p.estado==='preparando'?'Listo':p.estado==='listo'?'Entregar':p.estado==='entregado'?'Cobrar':'→'}
                       </button></div></td>
