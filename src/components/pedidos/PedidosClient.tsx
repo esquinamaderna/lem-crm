@@ -35,7 +35,7 @@ export function PedidosClient() {
   const [fCli, setFCli] = useState(''); const [fTel, setFTel] = useState('')
   const [fCanal, setFCanal] = useState('Mostrador'); const [fPago, setFPago] = useState('Efectivo')
   const [fNotas, setFNotas] = useState(''); const [fItems, setFItems] = useState<CartItem[]>([])
-  const [fProdSel, setFProdSel] = useState(''); const [fKg, setFKg] = useState(0.5)
+  const [fProdSel, setFProdSel] = useState(''); const [fKg, setFKg] = useState<number>(0.5)
   const [fDescPct, setFDescPct] = useState(''); const [fDescMonto, setFDescMonto] = useState('')
 
   useEffect(() => { load() }, [filtroEstado])
@@ -49,7 +49,7 @@ export function PedidosClient() {
     setProductos(prods && prods.length ? prods : PRODUCTOS_DEFAULT.map((p, i) => ({ ...p, id: i + 1 })) as Producto[])
   }
 
-  const calcSubtotalItem = (i: CartItem) => i.pv * i.qty
+  const calcSubtotalItem = (i: CartItem) => (isNaN(i.pv) || isNaN(i.qty) ? 0 : i.pv * i.qty)
   const calcDescuentoItem = (i: CartItem) => {
     const sub = calcSubtotalItem(i)
     if (i.descMonto > 0) return Math.min(i.descMonto, sub)
@@ -64,7 +64,7 @@ export function PedidosClient() {
 
   function addFItem() {
     const id = parseInt(fProdSel); const p = productos.find(x => x.id === id); if (!p || !fKg || fKg <= 0) return
-    setFItems(prev => { const ex = prev.find(i => i.id === id); if (ex) return prev.map(i => i.id === id ? { ...i, qty: parseFloat((i.qty + fKg).toFixed(3)) } : i); return [...prev, { id, nombre: p.nombre, pv: p.precio_venta, qty: fKg }] })
+    setFItems(prev => { const ex = prev.find(i => i.id === id); if (ex) return prev.map(i => i.id === id ? { ...i, qty: parseFloat((i.qty + fKg).toFixed(3)) } : i); return [...prev, { id, nombre: p.nombre, pv: p.precio_venta, qty: parseFloat(fKg.toString()) || 0.5, descPct: 0, descMonto: 0 }] })
   }
 
   async function guardarPedido() {
@@ -244,7 +244,7 @@ export function PedidosClient() {
               <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 8 }}>Productos</div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                 <select value={fProdSel} onChange={e => setFProdSel(e.target.value)} style={{ flex: 2, minWidth: 160 }}><option value="">— Seleccionar —</option>{productos.map(p => <option key={p.id} value={p.id}>{p.nombre} — {fmt(p.precio_venta)}/kg</option>)}</select>
-                <input type="number" value={fKg} onChange={e => setFKg(parseFloat(e.target.value))} min={0.1} step={0.1} style={{ width: 80 }} />
+                <input type="number" value={fKg} onChange={e => setFKg(parseFloat(e.target.value) || 0.5)} min={0.1} step={0.1} style={{ width: 80 }} />
                 <button onClick={addFItem} style={{ ...b('green'), whiteSpace: 'nowrap' }}>+ Agregar</button>
               </div>
               {fItems.map(i => {
