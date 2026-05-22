@@ -100,7 +100,7 @@ export function DashboardClient() {
     // Calcular % MP automáticamente desde ventas reales
     if (medios.length > 0) {
       const totalVtas = medios.reduce((s, v) => s + v.total, 0)
-      const totalMP = medios.filter(v => v.medio_pago === 'MercadoPago').reduce((s, v) => s + v.total, 0)
+      const totalMP = medios.filter(v => v.medio_pago === 'MercadoPago').reduce((s, v) => s + v.total, 0) // Transferencia MP no tiene comisión
       if (totalVtas > 0) setPctMP(Math.round(totalMP / totalVtas * 100))
     }
     setLoading(false)
@@ -123,7 +123,13 @@ export function DashboardClient() {
   const totalCostosCargados = totalFijo + totalVariable + totalOperativo
 
   const ventasTotalMes = ventas.reduce((s, v) => s + v.total, 0)
-  const costoMPReal = ventasTotalMes * (pctMP / 100) * MP_TASA
+  // Solo "MercadoPago" tiene comisión — "Transferencia MP" es transferencia bancaria sin costo
+  const ventasConComisionMP = Object.entries(mediosPago)
+    .filter(([medio]) => medio === 'MercadoPago')
+    .reduce((s, [, v]) => s + v, 0)
+  const costoMPReal = ventasConComisionMP > 0
+    ? ventasConComisionMP * MP_TASA
+    : ventasTotalMes * (pctMP / 100) * MP_TASA
   const totalCostosReales = totalCostosCargados + costoMPReal
 
   // FC promedio ponderado (usamos 47% como base, ajustable)
@@ -458,6 +464,7 @@ export function DashboardClient() {
                       <div style={{ fontSize: 16, fontWeight: 'bold', color: esMP ? '#1050a0' : 'var(--text)' }}>{fmt(total)}</div>
                       <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{pct.toFixed(1)}% del total</div>
                       {esMP && <div style={{ fontSize: 11, color: '#aa2020', marginTop: 3 }}>Comisión: {fmt(total * MP_TASA)}</div>}
+              {medio === 'Transferencia MP' && <div style={{ fontSize: 11, color: '#1a7a40', marginTop: 3 }}>Sin comisión ✓</div>}
                       <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, marginTop: 6 }}>
                         <div style={{ height: '100%', borderRadius: 2, width: pct + '%', background: esMP ? '#1050a0' : '#1a7a40' }} />
                       </div>
@@ -651,6 +658,7 @@ export function DashboardClient() {
                       <div style={{ fontSize: 16, fontWeight: 'bold', color: esMP ? '#1050a0' : 'var(--text)' }}>{fmt(total)}</div>
                       <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{pct.toFixed(1)}% del total</div>
                       {esMP && <div style={{ fontSize: 11, color: '#aa2020', marginTop: 3 }}>Comisión: {fmt(total * MP_TASA)}</div>}
+              {medio === 'Transferencia MP' && <div style={{ fontSize: 11, color: '#1a7a40', marginTop: 3 }}>Sin comisión ✓</div>}
                       {/* Barra de proporción */}
                       <div style={{ height: 3, background: 'var(--border)', borderRadius: 2, marginTop: 6 }}>
                         <div style={{ height: '100%', borderRadius: 2, width: pct + '%', background: esMP ? '#1050a0' : '#1a7a40' }} />

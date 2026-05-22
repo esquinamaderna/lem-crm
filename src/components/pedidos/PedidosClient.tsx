@@ -8,12 +8,12 @@ import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 
 const ESTADOS = ['recibido', 'preparando', 'listo', 'entregado', 'cobrado'] as const
 const CANALES = ['Mostrador', 'WhatsApp', 'Instagram', 'Tienda Nube', 'Teléfono']
-const PAGOS = ['Efectivo', 'Transferencia', 'MercadoPago', 'Débito', 'Crédito', 'Pendiente']
+const PAGOS = ['Efectivo', 'Transferencia', 'Transferencia MP', 'MercadoPago', 'Débito', 'Crédito', 'Pendiente']
 const ESTADO_COLOR: Record<string, string> = { recibido: '#7a776f', preparando: '#1050a0', listo: '#9a7a1a', entregado: '#6030a0', cobrado: '#1a7a40', cancelado: '#aa2020' }
 const b = (v?: 'gold' | 'red' | 'green'): React.CSSProperties => ({ padding: '8px 12px', borderRadius: 6, border: `1px solid ${v === 'gold' ? 'var(--gold)' : v === 'red' ? 'rgba(190,50,50,.25)' : v === 'green' ? 'rgba(30,140,70,.25)' : 'var(--border)'}`, background: v === 'gold' ? 'var(--gold)' : v === 'red' ? 'rgba(190,50,50,.10)' : v === 'green' ? 'rgba(30,140,70,.10)' : 'var(--card)', color: v === 'gold' ? '#0f0f0f' : v === 'red' ? '#aa2020' : v === 'green' ? '#1a7a40' : 'var(--text)', cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif' })
 const lbl: React.CSSProperties = { fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 4 }
 
-type CartItem = { id: number; nombre: string; pv: number; qty: number }
+type CartItem = { id: number; nombre: string; pv: number; qty: number; descPct: number; descMonto: number }
 type PedidoConItems = Pedido & { pedido_items: PedidoItem[] }
 
 function pedNum(n: number) { return 'P' + String(n).padStart(4, '0') }
@@ -47,7 +47,15 @@ export function PedidosClient() {
     setProductos(prods && prods.length ? prods : PRODUCTOS_DEFAULT.map((p, i) => ({ ...p, id: i + 1 })) as Producto[])
   }
 
-  const totalFItems = fItems.reduce((s, i) => s + i.pv * i.qty, 0)
+  const calcSubtotalItem = (i: CartItem) => i.pv * i.qty
+  const calcDescuentoItem = (i: CartItem) => {
+    const sub = calcSubtotalItem(i)
+    if (i.descMonto > 0) return Math.min(i.descMonto, sub)
+    if (i.descPct > 0) return sub * (i.descPct / 100)
+    return 0
+  }
+  const calcTotalItem = (i: CartItem) => calcSubtotalItem(i) - calcDescuentoItem(i)
+  const totalFItems = fItems.reduce((s, i) => s + calcTotalItem(i), 0)
 
   function addFItem() {
     const id = parseInt(fProdSel); const p = productos.find(x => x.id === id); if (!p || !fKg || fKg <= 0) return
@@ -64,7 +72,7 @@ export function PedidosClient() {
       const pedido = { numero: num, fecha: today(), hora: nowTime(), cliente: fCli.trim(), telefono: fTel, canal: fCanal as Pedido['canal'], estado: 'recibido' as const, medio_pago: fPago, total: totalFItems, cobrado: false, notas: fNotas }
       const { data: pd, error } = await supabase.from('pedidos').insert(pedido).select().single()
       if (error) { alert('Error: ' + error.message); return }
-      await supabase.from('pedido_items').insert(fItems.map(i => ({ pedido_id: pd.id, producto_id: i.id, producto_nombre: i.nombre, cantidad_kg: i.qty, precio_unit: i.pv })))
+      await supabase.from('pedido_items').insert(fItems.map(i => ({ pedido_id: pd.id, producto_id: i.id, producto_nombre: i.nombre, cantidad_kg: i.qty, precio_unit: i.pv, descuento_pct: i.descPct || 0, descuento_monto: calcDescuentoItem(i), precio_final: calcTotalItem(i) })))
       await supabase.from('comandas').insert({ numero: 'CP' + num, pedido_id: pd.id, tipo: 'venta', contenido: { cliente: fCli, items: fItems, total: totalFItems }, impresa: false })
       setModal(null); setFCli(''); setFTel(''); setFItems([]); setFNotas(''); load()
     } catch (e) { console.error(e); alert('Error inesperado') }
@@ -199,15 +207,47 @@ export function PedidosClient() {
                 <input type="number" value={fKg} onChange={e => setFKg(parseFloat(e.target.value))} min={0.1} step={0.1} style={{ width: 80 }} />
                 <button onClick={addFItem} style={{ ...b('green'), whiteSpace: 'nowrap' }}>+ Agregar</button>
               </div>
-              {fItems.map(i => (
-                <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', borderBottom: '1px solid var(--borderl)', fontSize: 13 }}>
-                  <div style={{ flex: 1 }}>{i.nombre}</div>
-                  <span style={{ color: 'var(--muted)' }}>{fmtN(i.qty, 3)} kg</span>
-                  <div style={{ color: 'var(--gold)' }}>{fmt(i.pv * i.qty)}</div>
-                  <button onClick={() => setFItems(prev => prev.filter(x => x.id !== i.id))} style={{ color: '#aa2020', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>✕</button>
-                </div>
-              ))}
-              <div style={{ textAlign: 'right', marginTop: 8, color: 'var(--gold)', fontSize: 16 }}>Total: {fmt(totalFItems)}</div>
+              {fItems.map(i => {
+                const sub = calcSubtotalItem(i)
+                const desc = calcDescuentoItem(i)
+                const total = calcTotalItem(i)
+                return (
+                  <div key={i.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--borderl)' }}>
+                    {/* Fila producto */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, fontSize: 13 }}>
+                      <div style={{ flex: 1 }}>{i.nombre} — {fmtN(i.qty, 3)} kg</div>
+                      <div style={{ color: desc > 0 ? 'var(--muted)' : 'var(--gold)', textDecoration: desc > 0 ? 'line-through' : 'none', fontSize: 12 }}>{fmt(sub)}</div>
+                      {desc > 0 && <div style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{fmt(total)}</div>}
+                      <button onClick={() => setFItems(prev => prev.filter(x => x.id !== i.id))} style={{ color: '#aa2020', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>✕</button>
+                    </div>
+                    {/* Descuento por ítem */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 11, color: 'var(--muted)', minWidth: 70 }}>Descuento:</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input type="number" placeholder="%" value={i.descPct || ''}
+                          onChange={e => setFItems(prev => prev.map(x => x.id === i.id ? { ...x, descPct: parseFloat(e.target.value) || 0, descMonto: 0 } : x))}
+                          style={{ width: 55, fontSize: 11, padding: '2px 5px' }} />
+                        <span style={{ fontSize: 11, color: 'var(--dim)' }}>%</span>
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--dim)' }}>ó</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input type="number" placeholder="$ fijo" value={i.descMonto || ''}
+                          onChange={e => setFItems(prev => prev.map(x => x.id === i.id ? { ...x, descMonto: parseFloat(e.target.value) || 0, descPct: 0 } : x))}
+                          style={{ width: 75, fontSize: 11, padding: '2px 5px' }} />
+                      </div>
+                      {desc > 0 && <span style={{ fontSize: 11, color: '#aa2020' }}>−{fmt(desc)}</span>}
+                    </div>
+                  </div>
+                )
+              })}
+              <div style={{ textAlign: 'right', marginTop: 10, fontSize: 16 }}>
+                {fItems.some(i => calcDescuentoItem(i) > 0) && (
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 3 }}>
+                    Descuentos: −{fmt(fItems.reduce((s, i) => s + calcDescuentoItem(i), 0))}
+                  </div>
+                )}
+                <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>Total: {fmt(totalFItems)}</span>
+              </div>
             </div>
             <div style={{ marginBottom: 12 }}><label style={lbl}>Notas</label><textarea value={fNotas} onChange={e => setFNotas(e.target.value)} rows={2} /></div>
             <div style={{ display: 'flex', gap: 8 }}>
