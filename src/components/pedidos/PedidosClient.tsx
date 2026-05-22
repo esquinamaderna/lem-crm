@@ -35,6 +35,7 @@ export function PedidosClient() {
   const [fCanal, setFCanal] = useState('Mostrador'); const [fPago, setFPago] = useState('Efectivo')
   const [fNotas, setFNotas] = useState(''); const [fItems, setFItems] = useState<CartItem[]>([])
   const [fProdSel, setFProdSel] = useState(''); const [fKg, setFKg] = useState(0.5)
+  const [fDescPct, setFDescPct] = useState(''); const [fDescMonto, setFDescMonto] = useState('')
 
   useEffect(() => { load() }, [filtroEstado])
 
@@ -55,7 +56,10 @@ export function PedidosClient() {
     return 0
   }
   const calcTotalItem = (i: CartItem) => calcSubtotalItem(i) - calcDescuentoItem(i)
-  const totalFItems = fItems.reduce((s, i) => s + calcTotalItem(i), 0)
+  const subtotalConDescItems = fItems.reduce((s, i) => s + calcTotalItem(i), 0)
+  const descItemsTotalF = fItems.reduce((s, i) => s + calcDescuentoItem(i), 0)
+  const descGlobalF = fDescMonto ? (parseFloat(fDescMonto) || 0) : fDescPct ? subtotalConDescItems * (parseFloat(fDescPct) / 100) : 0
+  const totalFItems = Math.max(0, subtotalConDescItems - descGlobalF)
 
   function addFItem() {
     const id = parseInt(fProdSel); const p = productos.find(x => x.id === id); if (!p || !fKg || fKg <= 0) return
@@ -74,7 +78,7 @@ export function PedidosClient() {
       if (error) { alert('Error: ' + error.message); return }
       await supabase.from('pedido_items').insert(fItems.map(i => ({ pedido_id: pd.id, producto_id: i.id, producto_nombre: i.nombre, cantidad_kg: i.qty, precio_unit: i.pv, descuento_pct: i.descPct || 0, descuento_monto: calcDescuentoItem(i), precio_final: calcTotalItem(i) })))
       await supabase.from('comandas').insert({ numero: 'CP' + num, pedido_id: pd.id, tipo: 'venta', contenido: { cliente: fCli, items: fItems, total: totalFItems }, impresa: false })
-      setModal(null); setFCli(''); setFTel(''); setFItems([]); setFNotas(''); load()
+      setModal(null); setFCli(''); setFTel(''); setFItems([]); setFNotas(''); setFDescPct(''); setFDescMonto(''); load()
     } catch (e) { console.error(e); alert('Error inesperado') }
     setSaving(false)
   }
@@ -240,13 +244,34 @@ export function PedidosClient() {
                   </div>
                 )
               })}
-              <div style={{ textAlign: 'right', marginTop: 10, fontSize: 16 }}>
-                {fItems.some(i => calcDescuentoItem(i) > 0) && (
-                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 3 }}>
-                    Descuentos: −{fmt(fItems.reduce((s, i) => s + calcDescuentoItem(i), 0))}
+              {/* Descuento global sobre el total del pedido */}
+              <div style={{ borderTop: '1px solid var(--borderl)', paddingTop: 10, marginTop: 8 }}>
+                <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Descuento sobre el total del pedido</div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input type="number" value={fDescPct} onChange={e => { setFDescPct(e.target.value); setFDescMonto('') }} placeholder="% ej: 10" style={{ fontSize: 12, padding: '5px 8px' }} />
+                  <input type="number" value={fDescMonto} onChange={e => { setFDescMonto(e.target.value); setFDescPct('') }} placeholder="$ fijo" style={{ fontSize: 12, padding: '5px 8px' }} />
+                </div>
+              </div>
+              {/* Resumen de totales */}
+              <div style={{ borderTop: '1px solid var(--gold-d)', paddingTop: 10, marginTop: 8 }}>
+                {fItems.reduce((s, i) => s + calcSubtotalItem(i), 0) !== subtotalConDescItems && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)', marginBottom: 2 }}>
+                    <span>Subtotal bruto</span><span>{fmt(fItems.reduce((s, i) => s + calcSubtotalItem(i), 0))}</span>
                   </div>
                 )}
-                <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>Total: {fmt(totalFItems)}</span>
+                {descItemsTotalF > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#aa2020', marginBottom: 2 }}>
+                    <span>Dto. por ítems</span><span>−{fmt(descItemsTotalF)}</span>
+                  </div>
+                )}
+                {descGlobalF > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#aa2020', marginBottom: 4, borderTop: '1px solid var(--borderl)', paddingTop: 3 }}>
+                    <span>Dto. total{fDescPct ? ` ${fDescPct}%` : ''}</span><span>−{fmt(descGlobalF)}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, color: 'var(--gold)', fontWeight: 'bold' }}>
+                  <span>TOTAL</span><span>{fmt(totalFItems)}</span>
+                </div>
               </div>
             </div>
             <div style={{ marginBottom: 12 }}><label style={lbl}>Notas</label><textarea value={fNotas} onChange={e => setFNotas(e.target.value)} rows={2} /></div>
