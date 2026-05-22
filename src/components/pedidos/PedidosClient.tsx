@@ -158,9 +158,14 @@ export function PedidosClient() {
               <div style={{ fontSize: 16, color: 'var(--gold)', marginBottom: 10 }}>{fmt(p.total || 0)}</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={async () => {
-              const { data: stockFresco } = await supabase.from('productos').select('*').eq('activo', true)
+              const [{ data: pedidoFresco }, { data: stockFresco }] = await Promise.all([
+                supabase.from('pedidos').select('*, pedido_items(*)').eq('id', p.id).single(),
+                supabase.from('productos').select('*').eq('activo', true),
+              ])
               if (stockFresco) setProductos(stockFresco)
-              setDetalle(p); setModal('detalle')
+              if (pedidoFresco) setDetalle(pedidoFresco as PedidoConItems)
+              else setDetalle(p)
+              setModal('detalle')
             }} style={{ ...b(), flex: 1 }}>Ver</button>
                 <button onClick={() => avanzar(p.id, p.estado)} style={{ ...b('gold'), flex: 1 }}>
                 {p.estado==='recibido'?'▶ Preparar':p.estado==='preparando'?'✓ Listo':p.estado==='listo'?'📦 Entregar':p.estado==='entregado'?'💰 Cobrar':'Avanzar'}
@@ -186,10 +191,15 @@ export function PedidosClient() {
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{badgeEstado(p.estado)}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{p.cobrado ? <span style={{ color: '#1a7a40', fontSize: 12 }}>✓</span> : <span style={{ color: '#aa2020', fontSize: 12 }}>Pend.</span>}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><div style={{ display: 'flex', gap: 4 }}><button onClick={async () => {
-                          // Refrescar stock antes de mostrar el detalle
-                          const { data: stockFresco } = await supabase.from('productos').select('*').eq('activo', true)
+                          // Recargar pedido completo con ítems frescos + stock actualizado
+                          const [{ data: pedidoFresco }, { data: stockFresco }] = await Promise.all([
+                            supabase.from('pedidos').select('*, pedido_items(*)').eq('id', p.id).single(),
+                            supabase.from('productos').select('*').eq('activo', true),
+                          ])
                           if (stockFresco) setProductos(stockFresco)
-                          setDetalle(p); setModal('detalle')
+                          if (pedidoFresco) setDetalle(pedidoFresco as PedidoConItems)
+                          else setDetalle(p)
+                          setModal('detalle')
                         }} style={{ ...b(), padding: '4px 8px', fontSize: 11 }}>Ver</button><button onClick={() => avanzar(p.id, p.estado)} style={{ padding:'4px 8px', fontSize:10, borderRadius:6, cursor:'pointer', fontFamily:'Georgia,serif', border:'1px solid rgba(201,162,39,.3)', background:'rgba(201,162,39,.1)', color:'var(--gold)' }}>
                         {p.estado==='recibido'?'Preparar':p.estado==='preparando'?'Listo':p.estado==='listo'?'Entregar':p.estado==='entregado'?'Cobrar':'→'}
                       </button></div></td>
