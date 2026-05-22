@@ -52,9 +52,18 @@ export function POSClient() {
   const cartCount = cart.reduce((s, i) => s + 1, 0)
 
   const addToCart = (p: Producto) => {
+    if (!p.stock_kg || p.stock_kg <= 0) return // sin stock, bloqueado visualmente
     setCart(prev => {
       const ex = prev.find(c => c.id === p.id)
-      if (ex) return prev.map(c => c.id === p.id ? { ...c, qty: parseFloat((c.qty + 0.5).toFixed(3)) } : c)
+      const qtyActual = ex ? ex.qty : 0
+      const qtyNueva = parseFloat((qtyActual + 0.5).toFixed(3))
+      if (qtyNueva > p.stock_kg) {
+        // No superar el stock disponible
+        const maxPermitido = parseFloat(p.stock_kg.toFixed(3))
+        if (ex) return prev.map(c => c.id === p.id ? { ...c, qty: maxPermitido } : c)
+        return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: Math.min(0.5, maxPermitido), descPct: 0, descMonto: 0 }]
+      }
+      if (ex) return prev.map(c => c.id === p.id ? { ...c, qty: qtyNueva } : c)
       return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: 0.5, descPct: 0, descMonto: 0 }]
     })
   }
@@ -65,7 +74,14 @@ export function POSClient() {
 
   const setQtyManual = (id: number, val: string) => {
     const n = parseFloat(parseFloat(val).toFixed(3))
-    if (!isNaN(n) && n > 0) setCart(prev => prev.map(c => c.id === id ? { ...c, qty: n } : c))
+    if (isNaN(n) || n <= 0) return
+    const prod = productos.find(p => p.id === id)
+    if (prod && n > prod.stock_kg) {
+      // Permitir escribir pero mostrar en rojo — la validación final es al cobrar
+      setCart(prev => prev.map(c => c.id === id ? { ...c, qty: n } : c))
+    } else {
+      setCart(prev => prev.map(c => c.id === id ? { ...c, qty: n } : c))
+    }
   }
 
   const removeFromCart = (id: number) => setCart(prev => prev.filter(c => c.id !== id))
@@ -94,6 +110,19 @@ export function POSClient() {
 
   const cobrar = async () => {
     if (!cart.length) return
+    // Validar stock antes de cobrar
+    const sinStock = cart.filter(ci => {
+      const prod = productos.find(p => p.id === ci.id)
+      return prod && ci.qty > prod.stock_kg
+    })
+    if (sinStock.length > 0) {
+      const nombres = sinStock.map(ci => {
+        const prod = productos.find(p => p.id === ci.id)
+        return `${ci.nombre}: pedís ${fmtN(ci.qty, 1)} kg, hay ${fmtN(prod?.stock_kg || 0, 1)} kg`
+      }).join('\n')
+      alert(`Stock insuficiente:\n\n${nombres}\n\nAjustá las cantidades antes de cobrar.`)
+      return
+    }
     setLoading(true)
     try {
       const { count } = await supabase.from('ventas').select('*', { count: 'exact', head: true })
@@ -119,7 +148,7 @@ export function POSClient() {
   const print = (html: string) => { const pa = document.getElementById('print-area'); if (pa) { pa.innerHTML = html; window.print() } }
 
   // ── Cart panel (reutilizado en desktop sidebar y mobile modal) ──
-  const CartPanel = () => (
+  const cartPanelJSX = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, height: '100%' }}>
       <div style={{ flex: 1, overflowY: 'auto', maxHeight: 320, minHeight: 60 }}>
         {cart.length === 0
@@ -134,8 +163,15 @@ export function POSClient() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                     <div style={{ flex: 1, fontSize: 11, lineHeight: 1.3 }}>{i.nombre}</div>
                     <button onClick={() => changeQty(i.id, -0.1)} style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>−</button>
-                    <input type="number" value={i.qty} step="0.1" min="0.1" onChange={e => setQtyManual(i.id, e.target.value)}
-                      style={{ width: 48, textAlign: 'center', fontSize: 11, padding: '2px 3px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 4 }} />
+                    {(() => {
+                      const prod = productos.find(p => p.id === i.id)
+                      const sobreStock = prod && i.qty > prod.stock_kg
+                      return (
+                        <input type="number" value={i.qty} step="0.1" min="0.1" onChange={e => setQtyManual(i.id, e.target.value)}
+                          style={{ width: 48, textAlign: 'center', fontSize: 11, padding: '2px 3px', background: sobreStock ? 'rgba(170,32,32,.08)' : 'var(--surface)', border: `1px solid ${sobreStock ? '#aa2020' : 'var(--border)'}`, color: sobreStock ? '#aa2020' : 'var(--text)', borderRadius: 4 }}
+                          title={sobreStock ? `Stock disponible: ${fmtN(prod?.stock_kg || 0, 1)} kg` : ''} />
+                      )
+                    })()}
                     <span style={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>kg</span>
                     <button onClick={() => changeQty(i.id, 0.1)} style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>+</button>
                     <div style={{ minWidth: 55, textAlign: 'right', fontSize: 11, flexShrink: 0, color: desc > 0 ? 'var(--muted)' : 'var(--gold)', textDecoration: desc > 0 ? 'line-through' : 'none' }}>{fmt(sub)}</div>
@@ -284,7 +320,7 @@ export function POSClient() {
         <div className="pos-sidebar">
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, flex: 1, overflowY: 'auto' }}>
             <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 10 }}>Orden</div>
-            <CartPanel />
+            {cartPanelJSX}
           </div>
         </div>
       </div>
@@ -306,7 +342,7 @@ export function POSClient() {
               <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold)' }}>Orden</div>
               <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}>✕</button>
             </div>
-            <CartPanel />
+            {cartPanelJSX}
           </div>
         </div>
       )}
