@@ -460,8 +460,7 @@ export function PedidosClient() {
               <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--borderl)', fontSize: 13 }}>
                 <span>{i.producto_nombre}</span><span style={{ color: 'var(--muted)' }}>{fmtN(i.cantidad_kg, 3)} kg</span><span style={{ color: 'var(--gold)' }}>{fmt(i.precio_unit * i.cantidad_kg)}</span>
               </div>
-              )
-            })()}
+            ))}
             <div style={{ textAlign: 'right', fontSize: 18, color: 'var(--gold)', margin: '10px 0' }}>Total: {fmt(detalle.total || 0)}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {!detalle.cobrado && <button onClick={() => marcarCobrado(detalle.id)} style={{ ...b('green'), flex: 1 }}>✓ Cobrar</button>}
