@@ -35,16 +35,27 @@ export function POSClient() {
   }, [])
 
   const filtered = cat === 'Todos' ? productos : productos.filter(p => p.categoria === cat)
-  const subtotal = cart.reduce((s, i) => s + i.pv * i.qty, 0)
-  const descuentoValor = descMonto ? (parseFloat(descMonto) || 0) : descPct ? subtotal * (parseFloat(descPct) / 100) : 0
-  const total = Math.max(0, subtotal - descuentoValor)
+  const calcSubItem = (i: CartItem) => i.pv * i.qty
+  const calcDescItem = (i: CartItem) => {
+    const sub = calcSubItem(i)
+    if (i.descMonto > 0) return Math.min(i.descMonto, sub)
+    if (i.descPct > 0) return sub * (i.descPct / 100)
+    return 0
+  }
+  const calcNetItem = (i: CartItem) => calcSubItem(i) - calcDescItem(i)
+  const subtotalConDescItems = cart.reduce((s, i) => s + calcNetItem(i), 0)
+  const subtotal = cart.reduce((s, i) => s + calcSubItem(i), 0)
+  const descItemsTotal = cart.reduce((s, i) => s + calcDescItem(i), 0)
+  const descuentoGlobal = descMonto ? (parseFloat(descMonto) || 0) : descPct ? subtotalConDescItems * (parseFloat(descPct) / 100) : 0
+  const descuentoValor = descItemsTotal + descuentoGlobal
+  const total = Math.max(0, subtotalConDescItems - descuentoGlobal)
   const cartCount = cart.reduce((s, i) => s + 1, 0)
 
   const addToCart = (p: Producto) => {
     setCart(prev => {
       const ex = prev.find(c => c.id === p.id)
       if (ex) return prev.map(c => c.id === p.id ? { ...c, qty: parseFloat((c.qty + 0.5).toFixed(3)) } : c)
-      return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: 0.5 }]
+      return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: 0.5, descPct: 0, descMonto: 0 }]
     })
   }
 
@@ -60,7 +71,15 @@ export function POSClient() {
   const removeFromCart = (id: number) => setCart(prev => prev.filter(c => c.id !== id))
 
   const buildTicket = useCallback((num: string) => {
-    const rows = cart.map(i => `<div style="display:flex;justify-content:space-between;margin-bottom:2px"><span>${i.nombre} × ${fmtN(i.qty, 3)} kg</span><span>${fmt(i.pv * i.qty)}</span></div>`).join('')
+    const rows = cart.map(i => {
+      const sub = i.pv * i.qty
+      const desc = i.descMonto > 0 ? Math.min(i.descMonto, sub) : i.descPct > 0 ? sub * (i.descPct / 100) : 0
+      const net = sub - desc
+      return `<div style="display:flex;justify-content:space-between;margin-bottom:2px">
+        <span>${i.nombre} × ${fmtN(i.qty, 3)} kg</span>
+        <span>${desc > 0 ? `<s style="color:#999;font-size:10px">${fmt(sub)}</s> ${fmt(net)}` : fmt(sub)}</span>
+      </div>`
+    }).join('')
     const descLine = descuentoValor > 0 ? `<div style="display:flex;justify-content:space-between;color:#c00;margin-top:3px"><span>Descuento${descPct ? ` ${descPct}%` : ''}</span><span>-${fmt(descuentoValor)}</span></div>` : ''
     return `<div style="font-family:'Courier New',monospace;font-size:12px;color:#111;background:#fff;padding:14px;border-radius:6px;max-width:290px;border:1px solid #ccc">
       <div style="text-align:center;font-weight:bold;border-bottom:1px dashed #000;padding-bottom:5px;margin-bottom:7px">LA ESQUINA DE MADERNA<br><small style="font-size:10px;font-weight:normal">Tigre, Buenos Aires</small></div>
@@ -82,7 +101,7 @@ export function POSClient() {
       const venta = { numero_ticket: num, fecha: today(), hora: nowTime(), cliente: cliente || 'Mostrador', medio_pago: pago, total, estado: 'cobrada' as const, notas }
       const { data: vd, error } = await supabase.from('ventas').insert(venta).select().single()
       if (error) throw error
-      await supabase.from('venta_items').insert(cart.map(i => ({ venta_id: vd.id, producto_id: i.id, producto_nombre: i.nombre, cantidad_kg: i.qty, precio_unit: i.pv })))
+      await supabase.from('venta_items').insert(cart.map(i => ({ venta_id: vd.id, producto_id: i.id, producto_nombre: i.nombre, cantidad_kg: i.qty, precio_unit: i.pv, descuento_monto: calcDescItem(i), precio_final: calcNetItem(i) })))
       await supabase.from('caja').insert({ fecha: today(), hora: nowTime(), tipo: 'ingreso', concepto: `Venta ${num} — ${cliente || 'Mostrador'}`, monto: total, venta_id: vd.id })
       await supabase.from('comandas').insert({ numero: 'C' + num, venta_id: vd.id, tipo: 'venta', contenido: { cliente, items: cart, total, pago, descuento: descuentoValor }, impresa: false })
       for (const ci of cart) {
@@ -102,26 +121,47 @@ export function POSClient() {
   // ── Cart panel (reutilizado en desktop sidebar y mobile modal) ──
   const CartPanel = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, height: '100%' }}>
-      <div style={{ flex: 1, overflowY: 'auto', maxHeight: 280, minHeight: 60 }}>
+      <div style={{ flex: 1, overflowY: 'auto', maxHeight: 320, minHeight: 60 }}>
         {cart.length === 0
           ? <div style={{ color: 'var(--dim)', fontSize: 12, textAlign: 'center', padding: 20 }}>Sin productos</div>
-          : cart.map(i => (
-            <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 0', borderBottom: '1px solid var(--borderl)' }}>
-              <div style={{ flex: 1, fontSize: 12, lineHeight: 1.3 }}>{i.nombre}</div>
-              <button onClick={() => changeQty(i.id, -0.1)} style={{ width: 26, height: 26, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>−</button>
-              <input type="number" value={i.qty} step="0.1" min="0.1" onChange={e => setQtyManual(i.id, e.target.value)}
-                style={{ width: 56, textAlign: 'center', fontSize: 12, padding: '3px 4px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 4 }} />
-              <span style={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>kg</span>
-              <button onClick={() => changeQty(i.id, 0.1)} style={{ width: 26, height: 26, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>+</button>
-              <div style={{ minWidth: 64, textAlign: 'right', color: 'var(--gold)', fontSize: 12, flexShrink: 0 }}>{fmt(i.pv * i.qty)}</div>
-              <button onClick={() => removeFromCart(i.id)} style={{ color: '#aa2020', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, flexShrink: 0, padding: '0 2px' }}>✕</button>
-            </div>
-          ))}
+          : cart.map(i => {
+              const sub = calcSubItem(i)
+              const desc = calcDescItem(i)
+              const net = calcNetItem(i)
+              return (
+                <div key={i.id} style={{ padding: '7px 0', borderBottom: '1px solid var(--borderl)' }}>
+                  {/* Fila cantidad */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                    <div style={{ flex: 1, fontSize: 11, lineHeight: 1.3 }}>{i.nombre}</div>
+                    <button onClick={() => changeQty(i.id, -0.1)} style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>−</button>
+                    <input type="number" value={i.qty} step="0.1" min="0.1" onChange={e => setQtyManual(i.id, e.target.value)}
+                      style={{ width: 48, textAlign: 'center', fontSize: 11, padding: '2px 3px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 4 }} />
+                    <span style={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>kg</span>
+                    <button onClick={() => changeQty(i.id, 0.1)} style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>+</button>
+                    <div style={{ minWidth: 55, textAlign: 'right', fontSize: 11, flexShrink: 0, color: desc > 0 ? 'var(--muted)' : 'var(--gold)', textDecoration: desc > 0 ? 'line-through' : 'none' }}>{fmt(sub)}</div>
+                    {desc > 0 && <div style={{ minWidth: 50, textAlign: 'right', color: 'var(--gold)', fontSize: 12, fontWeight: 'bold', flexShrink: 0 }}>{fmt(net)}</div>}
+                    <button onClick={() => removeFromCart(i.id)} style={{ color: '#aa2020', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>✕</button>
+                  </div>
+                  {/* Descuento por ítem */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 10, color: 'var(--dim)', minWidth: 52 }}>Dto ítem:</span>
+                    <input type="number" placeholder="%" value={i.descPct || ''}
+                      onChange={e => setCart(prev => prev.map(c => c.id === i.id ? { ...c, descPct: parseFloat(e.target.value) || 0, descMonto: 0 } : c))}
+                      style={{ width: 44, fontSize: 10, padding: '1px 4px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                    <span style={{ fontSize: 10, color: 'var(--dim)' }}>%  ó</span>
+                    <input type="number" placeholder="$" value={i.descMonto || ''}
+                      onChange={e => setCart(prev => prev.map(c => c.id === i.id ? { ...c, descMonto: parseFloat(e.target.value) || 0, descPct: 0 } : c))}
+                      style={{ width: 56, fontSize: 10, padding: '1px 4px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                    {desc > 0 && <span style={{ fontSize: 10, color: '#aa2020', flexShrink: 0 }}>−{fmt(desc)}</span>}
+                  </div>
+                </div>
+              )
+            })}
       </div>
 
-      {/* Descuento */}
+      {/* Descuento global sobre el total */}
       <div style={{ borderTop: '1px solid var(--borderl)', paddingTop: 8, marginTop: 8 }}>
-        <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 5 }}>Descuento (opcional)</div>
+        <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 5 }}>Descuento sobre el total</div>
         <div style={{ display: 'flex', gap: 6 }}>
           <input type="number" value={descPct} onChange={e => { setDescPct(e.target.value); setDescMonto('') }} placeholder="% ej: 10" style={{ fontSize: 12, padding: '5px 8px' }} />
           <input type="number" value={descMonto} onChange={e => { setDescMonto(e.target.value); setDescPct('') }} placeholder="$ fijo" style={{ fontSize: 12, padding: '5px 8px' }} />
@@ -130,8 +170,10 @@ export function POSClient() {
 
       {/* Totales */}
       <div style={{ borderTop: '1px solid var(--gold-d)', paddingTop: 10, marginTop: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3 }}><span style={{ color: 'var(--muted)' }}>Subtotal</span><span>{fmt(subtotal)}</span></div>
-        {descuentoValor > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3, color: '#aa2020' }}><span>Dto.{descPct ? ` ${descPct}%` : ''}</span><span>−{fmt(descuentoValor)}</span></div>}
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 2 }}><span style={{ color: 'var(--muted)' }}>Subtotal bruto</span><span>{fmt(subtotal)}</span></div>
+        {descItemsTotal > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 2, color: '#aa2020' }}><span>Dto. por ítems</span><span>−{fmt(descItemsTotal)}</span></div>}
+        {descuentoGlobal > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 2, color: '#aa2020' }}><span>Dto. total{descPct ? ` ${descPct}%` : ''}</span><span>−{fmt(descuentoGlobal)}</span></div>}
+        {descuentoValor > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4, color: '#aa2020', borderTop: '1px solid var(--borderl)', paddingTop: 3 }}><span>Total descuentos</span><span>−{fmt(descuentoValor)}</span></div>}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 20, color: 'var(--gold)' }}><span>TOTAL</span><span>{fmt(total)}</span></div>
       </div>
 
