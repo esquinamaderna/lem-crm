@@ -31,6 +31,7 @@ export function PedidosClient() {
   const [printHTML, setPrintHTML] = useState('')
   const [printTitle, setPrintTitle] = useState('')
   const [saving, setSaving] = useState(false)
+  const [stockMap, setStockMap] = useState<Record<string, number>>({})
   const [fCli, setFCli] = useState(''); const [fTel, setFTel] = useState('')
   const [fCanal, setFCanal] = useState('Mostrador'); const [fPago, setFPago] = useState('Efectivo')
   const [fNotas, setFNotas] = useState(''); const [fItems, setFItems] = useState<CartItem[]>([])
