@@ -252,7 +252,49 @@ export function PedidosClient() {
                   <input type="number" value={fDescMonto} onChange={e => { setFDescMonto(e.target.value); setFDescPct('') }} placeholder="$ fijo" style={{ fontSize: 12, padding: '5px 8px' }} />
                 </div>
               </div>
-              {/* Resumen de totales */}
+              {/* ── ALERTA DE STOCK INSUFICIENTE ── */}
+              {fItems.filter(i => {
+                const prod = productos.find(p => p.id === i.id)
+                return prod && i.qty > prod.stock_kg
+              }).length > 0 && (
+                <div style={{ margin: '12px 0', padding: '14px 16px', background: '#fff0f0', border: '2px solid #aa2020', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 20 }}>🚨</span>
+                    <span style={{ fontSize: 14, fontWeight: 'bold', color: '#aa2020', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+                      Producción urgente requerida
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#7a1010', marginBottom: 10 }}>
+                    El pedido se puede registrar pero <strong>no hay stock suficiente</strong> para entregar:
+                  </div>
+                  {fItems.filter(i => {
+                    const prod = productos.find(p => p.id === i.id)
+                    return prod && i.qty > prod.stock_kg
+                  }).map(i => {
+                    const prod = productos.find(p => p.id === i.id)!
+                    const falta = parseFloat((i.qty - prod.stock_kg).toFixed(3))
+                    return (
+                      <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#fff', border: '1px solid #d98080', borderRadius: 6, marginBottom: 6 }}>
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: '#aa2020', fontSize: 13 }}>{i.nombre}</div>
+                          <div style={{ fontSize: 12, color: '#7a1010', marginTop: 2 }}>
+                            Pedido: {fmtN(i.qty, 2)} kg · Stock: {fmtN(prod.stock_kg, 2)} kg
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 16, fontWeight: 'bold', color: '#aa2020' }}>−{fmtN(falta, 2)} kg</div>
+                          <div style={{ fontSize: 11, color: '#7a1010' }}>a producir</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div style={{ fontSize: 12, color: '#7a1010', marginTop: 6, padding: '6px 10px', background: 'rgba(170,32,32,.08)', borderRadius: 4 }}>
+                    ⚠ Informar al cliente que la entrega requiere producción previa. El pedido queda registrado como "recibido".
+                  </div>
+                </div>
+              )}
+
+              {/* ── Resumen de totales ── */}
               <div style={{ borderTop: '1px solid var(--gold-d)', paddingTop: 10, marginTop: 8 }}>
                 {fItems.reduce((s, i) => s + calcSubtotalItem(i), 0) !== subtotalConDescItems && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)', marginBottom: 2 }}>
@@ -302,6 +344,33 @@ export function PedidosClient() {
               {[['Canal', detalle.canal], ['Pago', detalle.medio_pago || '—'], ['Fecha', `${fechaES(detalle.fecha)} · ${detalle.hora?.substring(0, 5)}`], ['Tel.', detalle.telefono || '—']].map(([l, v]) => <div key={l}><div style={{ fontSize: 11, color: 'var(--muted)' }}>{l}</div><div>{v}</div></div>)}
             </div>
             {detalle.notas && <div style={{ marginBottom: 12, fontSize: 12, color: 'var(--muted)' }}>📌 {detalle.notas}</div>}
+
+            {/* Alerta de stock insuficiente en detalle del pedido */}
+            {['recibido', 'preparando'].includes(detalle.estado) && (() => {
+              const itemsSinStock = (detalle.pedido_items || []).filter(i => {
+                const prod = productos.find(p => p.nombre === i.producto_nombre)
+                return prod && i.cantidad_kg > prod.stock_kg
+              })
+              if (!itemsSinStock.length) return null
+              return (
+                <div style={{ marginBottom: 14, padding: '12px 14px', background: '#fff0f0', border: '2px solid #aa2020', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 18 }}>🚨</span>
+                    <span style={{ fontSize: 13, fontWeight: 'bold', color: '#aa2020', textTransform: 'uppercase' }}>Producción urgente</span>
+                  </div>
+                  {itemsSinStock.map(i => {
+                    const prod = productos.find(p => p.nombre === i.producto_nombre)
+                    const falta = prod ? parseFloat((i.cantidad_kg - prod.stock_kg).toFixed(2)) : i.cantidad_kg
+                    return (
+                      <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '5px 0', borderBottom: '1px solid #d98080', color: '#aa2020' }}>
+                        <span><strong>{i.producto_nombre}</strong></span>
+                        <span>Faltan <strong>{fmtN(falta, 2)} kg</strong> a producir</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
             {(detalle.pedido_items || []).map(i => (
               <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--borderl)', fontSize: 13 }}>
                 <span>{i.producto_nombre}</span><span style={{ color: 'var(--muted)' }}>{fmtN(i.cantidad_kg, 3)} kg</span><span style={{ color: 'var(--gold)' }}>{fmt(i.precio_unit * i.cantidad_kg)}</span>
