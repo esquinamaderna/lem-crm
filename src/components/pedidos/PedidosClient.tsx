@@ -46,7 +46,12 @@ export function PedidosClient() {
     const { data } = await q
     setPedidos((data || []) as PedidoConItems[])
     const { data: prods } = await supabase.from('productos').select('*').eq('activo', true).order('nombre')
-    setProductos(prods && prods.length ? prods : PRODUCTOS_DEFAULT.map((p, i) => ({ ...p, id: i + 1 })) as Producto[])
+    const prodsList = prods && prods.length ? prods : PRODUCTOS_DEFAULT.map((p, i) => ({ ...p, id: i + 1 })) as Producto[]
+    setProductos(prodsList)
+    // Actualizar stockMap con datos frescos
+    const mapa: Record<string, number> = {}
+    prodsList.forEach((pr: any) => { mapa[pr.nombre.toLowerCase().trim()] = pr.stock_kg })
+    setStockMap(mapa)
   }
 
   const calcSubtotalItem = (i: CartItem) => (isNaN(i.pv) || isNaN(i.qty) ? 0 : i.pv * i.qty)
@@ -148,13 +153,24 @@ export function PedidosClient() {
       {/* Cards móvil */}
       <div className="resp-cards" style={{ display: 'none' }}>
         {pedidos.length === 0 ? <div style={{ color: 'var(--dim)', textAlign: 'center', padding: 20 }}>Sin pedidos</div>
-          : pedidos.map(p => (
-            <div key={p.id} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
+          : pedidos.map(p => {
+              const sinStock = ['recibido','preparando'].includes(p.estado) && (p.pedido_items || []).some((i: any) => {
+                const key = i.producto_nombre?.toLowerCase().trim()
+                const stk = key && key in stockMap ? stockMap[key] : productos.find((pr: any) => pr.nombre?.toLowerCase().trim() === key)?.stock_kg
+                return stk !== undefined && i.cantidad_kg > stk
+              })
+              return (
+            <div key={p.id} style={{ background: sinStock ? 'rgba(170,32,32,.04)' : 'var(--card)', border: sinStock ? '2px solid #aa2020' : '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
+              {sinStock && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', background: '#fff0f0', borderRadius: 6, fontSize: 12, color: '#aa2020', fontWeight: 'bold' }}>
+                  <span>🚨</span> Requiere producción urgente
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{p.numero}</span>
                 {badgeEstado(p.estado)}
               </div>
-              <div style={{ fontSize: 14, marginBottom: 4 }}>{p.cliente}</div>
+              <div style={{ fontSize: 14, marginBottom: 4, fontWeight: sinStock ? 'bold' : 'normal' }}>{p.cliente}</div>
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{fechaES(p.fecha)} · {p.canal} · {p.cobrado ? <span style={{ color: '#1a7a40' }}>✓ Cobrado</span> : <span style={{ color: '#aa2020' }}>Pendiente</span>}</div>
               <div style={{ fontSize: 16, color: 'var(--gold)', marginBottom: 10 }}>{fmt(p.total || 0)}</div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -181,7 +197,8 @@ export function PedidosClient() {
               </button>
               </div>
             </div>
-          ))}
+              )
+            })}
       </div>
 
       {/* Tabla desktop */}
@@ -191,17 +208,28 @@ export function PedidosClient() {
           <tbody>
             {pedidos.length === 0 ? <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--dim)', padding: 20 }}>Sin pedidos</td></tr>
               : pedidos.map(p => (
-                <tr key={p.id}>
+                {(() => {
+                  // Detectar si el pedido tiene stock insuficiente
+                  const sinStock = ['recibido','preparando'].includes(p.estado) && (p.pedido_items || []).some(i => {
+                    const stk = stockMap[i.producto_nombre?.toLowerCase().trim()] ?? productos.find(pr => pr.nombre?.toLowerCase().trim() === i.producto_nombre?.toLowerCase().trim())?.stock_kg
+                    return stk !== undefined && i.cantidad_kg > stk
+                  })
+                  return (
+                  <tr key={p.id} style={{ background: sinStock ? 'rgba(170,32,32,.04)' : 'transparent', borderLeft: sinStock ? '3px solid #aa2020' : '3px solid transparent' }}>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--gold)' }}>{p.numero}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{fechaES(p.fecha)}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{p.cliente}</td>
+                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontWeight: sinStock ? 'bold' : 'normal' }}>{p.cliente}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 10, background: 'rgba(30,100,180,.10)', color: '#1050a0', border: '1px solid rgba(30,100,180,.25)' }}>{p.canal}</span></td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--gold)' }}>{fmt(p.total || 0)}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{badgeEstado(p.estado)}</td>
+                  <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {badgeEstado(p.estado)}
+                      {sinStock && <span title="Stock insuficiente — requiere producción" style={{ fontSize: 14, cursor: 'default' }}>🚨</span>}
+                    </div>
+                  </td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}>{p.cobrado ? <span style={{ color: '#1a7a40', fontSize: 12 }}>✓</span> : <span style={{ color: '#aa2020', fontSize: 12 }}>Pend.</span>}</td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)' }}><div style={{ display: 'flex', gap: 4 }}><button onClick={async () => {
                           try {
-                            // Cargar pedido y items por separado (evita 400 del join)
                             const { data: ped } = await supabase.from('pedidos').select('*').eq('id', p.id).single()
                             const { data: items } = await supabase.from('pedido_items')
                               .select('id, pedido_id, producto_id, producto_nombre, cantidad_kg, precio_unit')
@@ -221,6 +249,8 @@ export function PedidosClient() {
                         {p.estado==='recibido'?'Preparar':p.estado==='preparando'?'Listo':p.estado==='listo'?'Entregar':p.estado==='entregado'?'Cobrar':'→'}
                       </button></div></td>
                 </tr>
+                  )
+                })()}
               ))}
           </tbody>
         </table>
@@ -430,7 +460,8 @@ export function PedidosClient() {
               <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--borderl)', fontSize: 13 }}>
                 <span>{i.producto_nombre}</span><span style={{ color: 'var(--muted)' }}>{fmtN(i.cantidad_kg, 3)} kg</span><span style={{ color: 'var(--gold)' }}>{fmt(i.precio_unit * i.cantidad_kg)}</span>
               </div>
-            ))}
+              )
+            })()}
             <div style={{ textAlign: 'right', fontSize: 18, color: 'var(--gold)', margin: '10px 0' }}>Total: {fmt(detalle.total || 0)}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {!detalle.cobrado && <button onClick={() => marcarCobrado(detalle.id)} style={{ ...b('green'), flex: 1 }}>✓ Cobrar</button>}
