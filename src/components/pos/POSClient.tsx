@@ -33,6 +33,8 @@ export function POSClient() {
         if (data && data.length > 0) setProductos(data)
         else setProductos(PRODUCTOS_DEFAULT.map((p, i) => ({ ...p, id: i + 1 })) as Producto[])
       })
+    supabase.from('combos').select('*, combo_items(*)').eq('activo', true).order('nombre')
+      .then(({ data }) => setCombos((data || []) as Combo[]))
   }, [])
 
   const filtered = cat === 'Todos' ? productos : productos.filter(p => p.categoria === cat)

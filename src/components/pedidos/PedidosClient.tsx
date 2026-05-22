@@ -5,7 +5,9 @@ import { fmt, fmtN, today, nowTime, fechaES, padNum } from '@/lib/utils'
 import type { Producto } from '@/types/database'
 import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 
-type CartItem = { id: number; nombre: string; pv: number; qty: number; descPct: number; descMonto: number }
+type CartItem = { id: number; nombre: string; pv: number; qty: number; descPct: number; descMonto: number; esCombo?: boolean; comboItems?: any[] }
+interface ComboItemDB { id?: number; combo_id: number; producto_id: number; producto_nombre: string; cantidad_kg: number }
+interface Combo { id: number; nombre: string; descripcion: string; precio: number; descuento_pct: number; activo: boolean; color: string; combo_items?: ComboItemDB[] }
 type PedidoItem = { id: number; pedido_id: number; producto_id?: number; producto_nombre: string; cantidad_kg: number; precio_unit: number }
 type Pedido = { id: number; numero: string; fecha: string; hora?: string; cliente: string; telefono?: string; canal: string; estado: string; medio_pago?: string; total?: number; cobrado: boolean; notas?: string }
 type PedidoConItems = Pedido & { pedido_items: PedidoItem[] }
@@ -36,6 +38,7 @@ export function PedidosClient() {
   const [printHTML, setPrintHTML] = useState('')
   const [printTitle, setPrintTitle] = useState('')
   const [saving, setSaving] = useState(false)
+  const [combos, setCombos] = useState<Combo[]>([])
   const [stockMap, setStockMap] = useState<Record<string,number>>({})
   const [fCli, setFCli] = useState(''); const [fTel, setFTel] = useState('')
   const [fCanal, setFCanal] = useState('Mostrador'); const [fPago, setFPago] = useState('Efectivo')
@@ -50,9 +53,11 @@ export function PedidosClient() {
     if (filtroEstado) q = q.eq('estado', filtroEstado)
     const { data } = await q
     setPedidos((data || []) as PedidoConItems[])
+    const { data: combosData } = await supabase.from('combos').select('*, combo_items(*)').eq('activo', true).order('nombre')
+    setCombos((combosData || []) as Combo[])
     const { data: prods } = await supabase.from('productos').select('*').eq('activo', true).order('nombre')
     const prodsList = prods && prods.length ? prods : PRODUCTOS_DEFAULT.map((p, i) => ({ ...p, id: i + 1 })) as Produto[]
-    setProductos(prodsList as Produto[])
+    setProductos(prodsList as Producto[])
     const mapa: Record<string,number> = {}
     prodsList.forEach((pr: any) => { mapa[pr.nombre.toLowerCase().trim()] = pr.stock_kg })
     setStockMap(mapa)
@@ -76,6 +81,14 @@ export function PedidosClient() {
       const k = (i.producto_nombre || '').toLowerCase().trim()
       const stk = k in stockMap ? stockMap[k] : productos.find((p: any) => (p.nombre||'').toLowerCase().trim() === k)?.stock_kg
       return stk !== undefined && i.cantidad_kg > stk
+    })
+  }
+
+  function addComboToFItems(c: Combo) {
+    setFItems(prev => {
+      const ex = prev.find(i => i.id === -c.id)
+      if (ex) return prev.map(i => i.id === -c.id ? { ...i, qty: i.qty + 1 } : i)
+      return [...prev, { id: -c.id, nombre: c.nombre, pv: c.precio, qty: 1, descPct: 0, descMonto: 0, esCombo: true, comboItems: c.combo_items || [] }]
     })
   }
 
@@ -155,7 +168,7 @@ export function PedidosClient() {
       const { data: items } = await supabase.from('pedido_items').select('id, pedido_id, producto_id, producto_nombre, cantidad_kg, precio_unit').eq('pedido_id', p.id)
       const { data: stockFresco } = await supabase.from('productos').select('id, nombre, stock_kg').eq('activo', true)
       if (stockFresco) {
-        setProductos(stockFresco as any)
+        setProductos(stockFresco as Producto[])
         const mapa: Record<string,number> = {}
         stockFresco.forEach((pr: any) => { mapa[pr.nombre.toLowerCase().trim()] = pr.stock_kg })
         setStockMap(mapa)
@@ -320,6 +333,20 @@ export function PedidosClient() {
               <input type="number" value={fKg} onChange={e => setFKg(parseFloat(e.target.value) || 0.5)} min={0.1} step={0.1} style={{ width:80 }} />
               <button onClick={addFItem} style={{ ...b('green'), whiteSpace:'nowrap' }}>+ Agregar</button>
             </div>
+
+            {combos.length > 0 && (
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:10, letterSpacing:2, textTransform:'uppercase', color:'var(--muted)', marginBottom:8 }}>🍱 Combos</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                  {combos.map(c => (
+                    <button key={c.id} onClick={() => addComboToFItems(c)}
+                      style={{ padding:'6px 12px', borderRadius:6, cursor:'pointer', fontSize:12, fontFamily:'Georgia,serif', border:`1px solid ${c.color || 'var(--border)'}66`, background:`${c.color || '#888'}11`, color: c.color || 'var(--text)' }}>
+                      🍱 {c.nombre} — {fmt(c.precio)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {fItems.map(i => {
               const sub = calcSubItem(i)
