@@ -365,17 +365,19 @@ export function PedidosClient() {
             {detalle.notas && <div style={{ marginBottom: 12, fontSize: 12, color: 'var(--muted)' }}>📌 {detalle.notas}</div>}
 
             {/* Alerta de stock insuficiente en detalle del pedido */}
-            {['recibido', 'preparando'].includes(detalle.estado) && (() => {
-              const itemsSinStock = (detalle.pedido_items || []).filter(i => {
-                // Match por nombre (insensible a mayúsculas) o por producto_id
+            {['recibido', 'preparando'].includes(detalle.estado) && (detalle.pedido_items || []).length > 0 && (() => {
+              // Calcular ítems con stock insuficiente
+              const alertas = (detalle.pedido_items || []).map(i => {
                 const prod = productos.find(p =>
                   p.nombre.toLowerCase().trim() === i.producto_nombre.toLowerCase().trim() ||
-                  (i.producto_id && p.id === i.producto_id)
+                  p.id === (i as any).producto_id
                 )
-                if (!prod) return false // si no encontramos el producto, no alertar
-                return i.cantidad_kg > prod.stock_kg
-              })
-              if (!itemsSinStock.length) return null
+                const stockDisp = prod ? prod.stock_kg : null
+                const falta = stockDisp !== null ? parseFloat((i.cantidad_kg - stockDisp).toFixed(2)) : 0
+                return { ...i, stockDisp, falta, sinStock: stockDisp !== null && i.cantidad_kg > stockDisp }
+              }).filter(a => a.sinStock)
+
+              if (!alertas.length) return null
               return (
                 <div style={{ marginBottom: 14, padding: '14px 16px', background: '#fff0f0', border: '2px solid #aa2020', borderRadius: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -387,28 +389,20 @@ export function PedidosClient() {
                   <div style={{ fontSize: 12, color: '#7a1010', marginBottom: 10 }}>
                     Stock insuficiente para entregar este pedido:
                   </div>
-                  {itemsSinStock.map(i => {
-                    const prod = productos.find(p =>
-                      p.nombre.toLowerCase().trim() === i.producto_nombre.toLowerCase().trim() ||
-                      (i.producto_id && p.id === i.producto_id)
-                    )
-                    const stockDisp = prod ? prod.stock_kg : 0
-                    const falta = parseFloat((i.cantidad_kg - stockDisp).toFixed(2))
-                    return (
-                      <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#fff', border: '1px solid #d98080', borderRadius: 6, marginBottom: 6 }}>
-                        <div>
-                          <div style={{ fontWeight: 'bold', color: '#aa2020', fontSize: 13 }}>{i.producto_nombre}</div>
-                          <div style={{ fontSize: 11, color: '#7a1010', marginTop: 2 }}>
-                            Pedido: {fmtN(i.cantidad_kg, 2)} kg · Stock actual: {fmtN(stockDisp, 2)} kg
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontSize: 18, fontWeight: 'bold', color: '#aa2020' }}>−{fmtN(falta, 2)} kg</div>
-                          <div style={{ fontSize: 11, color: '#7a1010' }}>a producir</div>
+                  {alertas.map(i => (
+                    <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#fff', border: '1px solid #d98080', borderRadius: 6, marginBottom: 6 }}>
+                      <div>
+                        <div style={{ fontWeight: 'bold', color: '#aa2020', fontSize: 13 }}>{i.producto_nombre}</div>
+                        <div style={{ fontSize: 11, color: '#7a1010', marginTop: 2 }}>
+                          Pedido: {fmtN(i.cantidad_kg, 2)} kg · Stock actual: {fmtN(i.stockDisp ?? 0, 2)} kg
                         </div>
                       </div>
-                    )
-                  })}
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: 18, fontWeight: 'bold', color: '#aa2020' }}>−{fmtN(i.falta, 2)} kg</div>
+                        <div style={{ fontSize: 11, color: '#7a1010' }}>a producir</div>
+                      </div>
+                    </div>
+                  ))}
                   <div style={{ fontSize: 12, color: '#7a1010', marginTop: 6, padding: '6px 10px', background: 'rgba(170,32,32,.08)', borderRadius: 4 }}>
                     ⚠ Coordinar producción antes de la entrega.
                   </div>
