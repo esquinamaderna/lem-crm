@@ -120,6 +120,18 @@ export function POSClient() {
       const sub = i.pv * i.qty
       const desc = i.descMonto > 0 ? Math.min(i.descMonto, sub) : i.descPct > 0 ? sub * (i.descPct / 100) : 0
       const net = sub - desc
+      const esCombo = (i as any).esCombo
+      const comboItems = (i as any).comboItems || []
+      if (esCombo) {
+        // Ticket: mostrar nombre del combo, componentes y precio
+        const detalle = comboItems.map((ci: any) => `<div style="padding-left:10px;font-size:10px;color:#666">· ${ci.producto_nombre} ${fmtN(ci.cantidad_kg * 1000, 0)}g × ${i.qty}</div>`).join('')
+        return `<div style="margin-bottom:4px">
+          <div style="display:flex;justify-content:space-between">
+            <span>🍱 ${i.nombre} × ${i.qty}</span>
+            <span>${fmt(net)}</span>
+          </div>${detalle}
+        </div>`
+      }
       return `<div style="display:flex;justify-content:space-between;margin-bottom:2px">
         <span>${i.nombre} × ${fmtN(i.qty, 3)} kg</span>
         <span>${desc > 0 ? `<s style="color:#999;font-size:10px">${fmt(sub)}</s> ${fmt(net)}` : fmt(sub)}</span>
@@ -283,7 +295,15 @@ export function POSClient() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => {
             if (!cart.length) return
-            const rows = cart.map(i => `<div style="display:flex;gap:8px;margin-bottom:4px;font-size:13px"><strong style="min-width:60px">${fmtN(i.qty, 3)} kg</strong><span>${i.nombre}</span></div>`).join('')
+            const rows = cart.map(i => {
+              const esCombo = (i as any).esCombo
+              const comboItems = (i as any).comboItems || []
+              if (esCombo) {
+                const detalle = comboItems.map((ci: any) => `<div style="padding-left:16px;font-size:11px;color:#555">· ${ci.producto_nombre} ${fmtN(ci.cantidad_kg * 1000, 0)}g</div>`).join('')
+                return `<div style="margin-bottom:6px"><div style="display:flex;gap:8px;font-size:13px"><strong style="min-width:60px">× ${i.qty}</strong><span>🍱 ${i.nombre}</span></div>${detalle}</div>`
+              }
+              return `<div style="display:flex;gap:8px;margin-bottom:4px;font-size:13px"><strong style="min-width:60px">${fmtN(i.qty, 3)} kg</strong><span>${i.nombre}</span></div>`
+            }).join('')
             setComandaHTML(`<div style="font-family:'Courier New',monospace;border:2px solid #000;padding:10px;max-width:270px;background:#fff;color:#000"><div style="text-align:center;font-weight:bold;font-size:15px;border-bottom:2px solid #000;padding-bottom:5px;margin-bottom:7px">COMANDA · ${nowTime()}</div><div style="font-size:12px;margin-bottom:6px">Cliente: <strong>${cliente || 'Mostrador'}</strong></div><div style="border-top:1px dashed #000;padding-top:6px">${rows}</div><div style="border-top:2px solid #000;margin-top:6px;padding-top:5px;font-size:13px;font-weight:bold">TOTAL: ${fmt(total)}</div></div>`)
             setModal('comanda')
           }} style={{ ...btnSm, flex: 1 }}>🗒 Comanda</button>
