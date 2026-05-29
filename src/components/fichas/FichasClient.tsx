@@ -273,7 +273,16 @@ export function FichasClient() {
 
   useEffect(() => {
     supabase.from('productos').select('*').eq('activo', true).order('nombre')
-      .then(({ data }) => setProds(data && data.length ? data : PRODUCTOS_DEFAULT.map((p, i) => ({ ...p, id: i + 1 })) as Producto[]))
+      .then(({ data }) => {
+      const todos = data && data.length ? data : PRODUCTOS_DEFAULT.map((p, i) => ({ ...p, id: i + 1 })) as Produto[]
+      // Mostrar solo elaborados (con receta): excluir JUMBALAY, CORTES, EMBUTIDOS
+      // excepto los que tengan tipo_producto='elaborado' explícito
+      const conReceta = todos.filter((p: any) =>
+        p.tipo_producto === 'elaborado' ||
+        (!['JUMBALAY','CORTES','EMBUTIDOS'].includes(p.categoria) && p.tipo_producto !== 'reventa')
+      )
+      setProds(conReceta as Producto[])
+    })
     supabase.from('ordenes_produccion').select('*', { count: 'exact', head: true })
       .then(({ count }) => setPfLote('L' + String((count ?? 0) + 1).padStart(3, '0')))
   }, [])
