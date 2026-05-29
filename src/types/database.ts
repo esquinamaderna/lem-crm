@@ -62,6 +62,7 @@ export interface Producto {
   activo: boolean
   visible_catalogo: boolean
   unidad_venta?: 'kg' | 'u' | 'L'
+  tipo_producto?: 'elaborado' | 'reventa'
   unidad_venta: 'kg' | 'u' | 'L'
   created_at?: string
   updated_at?: string

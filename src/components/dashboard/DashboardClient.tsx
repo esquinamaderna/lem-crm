@@ -73,6 +73,7 @@ export function DashboardClient() {
   const [costos, setCostos] = useState<CostoFijo[]>([])
   const [ventas, setVentas] = useState<VentaMes[]>([])
   const [ventasPorMedio, setVentasPorMedio] = useState<{medio_pago: string, total: number}[]>([])
+  const [ventaItems, setVentaItems] = useState<any[]>([])
   const [pctMP, setPctMP] = useState(30)
   const [tab, setTab] = useState<'resumen' | 'costos' | 'equilibrio' | 'compras'>('resumen')
   const [loading, setLoading] = useState(true)
@@ -88,13 +89,15 @@ export function DashboardClient() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: c }, { data: v }, { data: vm }] = await Promise.all([
+    const [{ data: c }, { data: v }, { data: vm }, { data: vi }] = await Promise.all([
       supabase.from('costos_fijos_mensuales').select('*').eq('periodo', periodo).order('categoria').order('concepto'),
       supabase.from('ventas').select('total, fecha').gte('fecha', periodo + '-01').lte('fecha', periodo + '-31'),
       supabase.from('ventas').select('medio_pago, total').gte('fecha', periodo + '-01').lte('fecha', periodo + '-31'),
+      supabase.from('venta_items').select('producto_id, cantidad_kg, precio_final, productos(tipo_producto, costo, precio_venta)').gte('created_at', periodo + '-01').lte('created_at', periodo + '-31'),
     ])
     setCostos((c || []) as CostoFijo[])
     setVentas((v || []) as VentaMes[])
+    setVentaItems((vi || []) as any[])
     const medios = (vm || []) as {medio_pago: string, total: number}[]
     setVentasPorMedio(medios)
     // Calcular % MP automáticamente desde ventas reales
@@ -145,11 +148,37 @@ export function DashboardClient() {
   const puntoEq = cm > 0 ? totalCostosCargados / cm : 0
   const faltaParaEq = Math.max(0, puntoEq - ventasTotalMes)
 
-  // ── Realidad de caja: incluye reposición de materia prima ──
-  const baseReposicion = ventasTotalMes > 0 ? ventasTotalMes : puntoEq
-  const costoReposicion = baseReposicion * FC_PROM
+  // ── Reposición calculada por tipo de producto ──
+  // Si hay venta_items con tipo, calcular FC real separado por elaborado/reventa
+  // Si no hay datos suficientes, usar FC_PROM como fallback
+  const itemsElaborados = ventaItems.filter((i: any) => i.productos?.tipo_producto === 'elaborado')
+  const itemsReventa    = ventaItems.filter((i: any) => i.productos?.tipo_producto === 'reventa')
+
+  const ventasElaborados = itemsElaborados.reduce((s: number, i: any) => s + (i.precio_final || 0), 0)
+  const ventasReventa    = itemsReventa.reduce((s: number, i: any) => s + (i.precio_final || 0), 0)
+
+  // FC real de elaborados (costo ingredientes / PV)
+  const costoElaborados = itemsElaborados.reduce((s: number, i: any) => {
+    const fc = i.productos ? i.productos.costo / (i.productos.precio_venta || 1) : FC_PROM
+    return s + (i.precio_final || 0) * fc
+  }, 0)
+  // FC real de reventa (costo compra / PV)  
+  const costoReventa = itemsReventa.reduce((s: number, i: any) => {
+    const fc = i.productos ? i.productos.costo / (i.productos.precio_venta || 1) : 0.65
+    return s + (i.precio_final || 0) * fc
+  }, 0)
+
+  // Si tenemos datos reales, usar esos; si no, estimar por FC_PROM
+  const hayDatosItems = ventaItems.length > 0
+  const costoReposicionElaborados = hayDatosItems ? costoElaborados : ventasTotalMes * FC_PROM * 0.7
+  const costoReposicionReventa    = hayDatosItems ? costoReventa    : ventasTotalMes * FC_PROM * 0.3
+  const costoReposicion = costoReposicionElaborados + costoReposicionReventa
+
   const resultadoCaja = resultadoNeto - costoReposicion
   const enNegrosCaja = resultadoCaja >= 0
+
+  // FC promedio real del mix vendido
+  const fcRealMix = ventasTotalMes > 0 ? (costoElaborados + costoReventa) / ventasTotalMes : FC_PROM
   const pctAvance = puntoEq > 0 ? Math.min(100, ventasTotalMes / puntoEq * 100) : 0
 
   const diasMes = new Date(parseInt(periodo.split('-')[0]), parseInt(periodo.split('-')[1]), 0).getDate()
@@ -441,7 +470,10 @@ export function DashboardClient() {
               <div style={{ padding: '16px 18px', borderRadius: 10, background: enNegrosCaja ? 'rgba(26,122,64,.08)' : 'rgba(170,32,32,.06)', border: `2px solid ${enNegrosCaja ? 'rgba(26,122,64,.3)' : 'rgba(170,32,32,.3)'}` }}>
                 <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Realidad de caja</div>
                 <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>
-                  Ganancia real después de reservar <strong>{fmt(costoReposicion)}</strong> para reponer la materia prima del próximo mes (FC {(FC_PROM*100).toFixed(0)}% × ventas).
+                  Ganancia real después de reservar <strong>{fmt(costoReposicion)}</strong> para reponer stock del próximo mes.
+                  {hayDatosItems
+                    ? ` FC real del mix: ${(fcRealMix*100).toFixed(1)}% (elaborados ${(costoReposicionElaborados/Math.max(ventasTotalMes,1)*100).toFixed(1)}% + reventa ${(costoReposicionReventa/Math.max(ventasTotalMes,1)*100).toFixed(1)}%)`
+                    : ` FC estimado ${(FC_PROM*100).toFixed(0)}% (sin ventas registradas aún)`}
                 </div>
                 <div style={{ fontSize: 36, fontWeight: 'bold', color: enNegrosCaja ? '#1a7a40' : '#aa2020', letterSpacing: -1 }}>
                   {enNegrosCaja ? '+' : ''}{fmt(resultadoCaja)}
@@ -452,14 +484,26 @@ export function DashboardClient() {
               </div>
             </div>
 
-            {/* Desglose reposición */}
+            {/* Desglose reposición por tipo */}
             <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(30,100,180,.06)', border: '1px solid rgba(30,100,180,.2)', borderRadius: 8, fontSize: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ color: 'var(--muted)' }}>Margen operativo</span>
                 <span style={{ color: enNegrosOperativo ? '#1a7a40' : '#aa2020', fontWeight: 'bold' }}>{fmt(resultadoNeto)}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: '#aa2020' }}>
-                <span>− Reposición materia prima ({(FC_PROM*100).toFixed(0)}% × {fmt(ventasTotalMes > 0 ? ventasTotalMes : puntoEq)})</span>
+              {costoReposicionElaborados > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, color: '#aa2020' }}>
+                  <span>− Reposición ingredientes (elaborados)</span>
+                  <span>−{fmt(costoReposicionElaborados)}</span>
+                </div>
+              )}
+              {costoReposicionReventa > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: '#aa2020' }}>
+                  <span>− Reposición stock (reventa)</span>
+                  <span>−{fmt(costoReposicionReventa)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: '#aa2020', borderTop: '1px dashed rgba(170,32,32,.2)', paddingTop: 4 }}>
+                <span>Total reposición {hayDatosItems ? `(FC real ${(fcRealMix*100).toFixed(1)}%)` : `(FC estimado ${(FC_PROM*100).toFixed(0)}%)`}</span>
                 <span>−{fmt(costoReposicion)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 6, fontWeight: 'bold' }}>

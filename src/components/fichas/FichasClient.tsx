@@ -406,6 +406,10 @@ export function FichasClient() {
 
       {/* ══════════════════════════════ TAB: FICHAS ══════════════════════════════ */}
       {tab === 'ficha' && (
+        <div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12, padding: '8px 12px', background: 'var(--bg)', borderRadius: 6, border: '1px solid var(--border)' }}>
+            📋 Las fichas técnicas corresponden a <strong>productos de elaboración propia</strong>. Los productos de reventa (Jumbalay, CSR, cortes) solo requieren ajuste de stock desde la solapa Productos.
+          </div>
         <div className="fichas-grid">
           {/* Panel izquierdo */}
           <div>
@@ -566,6 +570,7 @@ export function FichasClient() {
               </div>
             )}
           </div>
+        </div>
         </div>
       )}
 
