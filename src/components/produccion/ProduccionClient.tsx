@@ -35,7 +35,16 @@ export function ProduccionClient() {
     const { data } = await q
     setOrdenes(data || [])
     const { data: prods } = await supabase.from('productos').select('*').eq('activo', true).order('nombre')
-    setProductos(prods && prods.length ? prods : PRODUCTOS_DEFAULT.map((p, i) => ({ ...p, id: i + 1 })) as Producto[])
+    const todosProd = prods && prods.length ? prods : PRODUCTOS_DEFAULT.map((p, i) => ({ ...p, id: i + 1 })) as Producto[]
+    const CATS_REV = ['JUMBALAY','CORTES','EMBUTIDOS']
+    const NOMS_REV = ['Bastones','Caritas','Noisette','Nuggets','Aceituna','Mermelada','Untable','Miel','Pickles','Chutney','Chorizo CSR','Morcilla','Salchicha','Jamón','Salada CSR','Ahumada','Ribs CSR','Colorado CSR','Solomillo','Carré CSR','Pecho CSR','Bondiola CSR','Churrasco CSR','Matambrito','Aceite de Oliva','Tomate Triturado']
+    const soloElab = todosProd.filter((p: any) => {
+      if (CATS_REV.includes(p.categoria)) return false
+      if (p.tipo_producto === 'reventa') return false
+      if (NOMS_REV.some((n: string) => (p.nombre || '').startsWith(n))) return false
+      return true
+    })
+    setProductos(soloElab as Producto[])
   }
 
   function addSesionItem() {
