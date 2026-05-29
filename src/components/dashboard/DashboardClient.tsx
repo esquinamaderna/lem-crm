@@ -185,10 +185,23 @@ export function DashboardClient() {
     return s + (i.precio_final || 0) * fc
   }, 0)
 
-  // Si tenemos datos reales, usar esos; si no, estimar por FC_PROM
-  const hayDatosItems = ventaItems.length > 0
-  const costoReposicionElaborados = hayDatosItems ? costoElaborados : ventasTotalMes * FC_PROM * 0.7
-  const costoReposicionReventa    = hayDatosItems ? costoReventa    : ventasTotalMes * FC_PROM * 0.3
+  // Calcular reposición siempre sobre ventas reales (o punto equilibrio si no hay ventas)
+  // FC real si hay items con datos, FC_PROM como fallback
+  const hayDatosItems = ventaItems.length > 0 && (costoElaborados + costoReventa) > 0
+  const baseCalculo = ventasTotalMes > 0 ? ventasTotalMes : puntoEq
+  
+  let costoReposicionElaborados: number
+  let costoReposicionReventa: number
+  
+  if (hayDatosItems) {
+    // Usar FC real calculado desde los items vendidos
+    costoReposicionElaborados = costoElaborados
+    costoReposicionReventa = costoReventa
+  } else {
+    // Estimar: 70% elaborados (FC 47%), 30% reventa (FC 65%)
+    costoReposicionElaborados = baseCalculo * 0.70 * FC_PROM
+    costoReposicionReventa    = baseCalculo * 0.30 * 0.65
+  }
   const costoReposicion = costoReposicionElaborados + costoReposicionReventa
 
   const resultadoCaja = resultadoNeto - costoReposicion
