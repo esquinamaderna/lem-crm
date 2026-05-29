@@ -434,9 +434,9 @@ export function FichasClient() {
   }
 
   async function cargarHistorial() {
-    if (histCargado) return
-    const { data } = await supabase.from('ingredientes_precios')
+    const { data, error } = await supabase.from('ingredientes_precios')
       .select('*').order('fecha', { ascending: false }).order('nombre').limit(500)
+    if (error) console.error('Error cargando historial:', error)
     setHistorial(data || [])
     setHistCargado(true)
   }
@@ -452,7 +452,7 @@ export function FichasClient() {
       {/* ── Tabs ── */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
         {[['ficha', '📋 Fichas técnicas'], ['precios', '💰 Actualizar precios'], ['historial', '📈 Historial de precios']].map(([t, label]) => (
-          <button key={t} onClick={() => setTab(t as TabType)} style={{
+          <button key={t} onClick={() => { setTab(t as TabType); if (t === 'historial') cargarHistorial() }} style={{
             padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif',
             border: tab === t ? '1px solid var(--gold)' : '1px solid var(--border)',
             background: tab === t ? 'var(--gold-bg)' : 'var(--card)',
