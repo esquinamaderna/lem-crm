@@ -271,6 +271,7 @@ export function FichasClient() {
   const [historial, setHistorial] = useState<{id:number; nombre:string; precio:number; fecha:string; notas?:string}[]>([])
   const [histFiltro, setHistFiltro] = useState('')
   const [histCargado, setHistCargado] = useState(false)
+  const [histExpand, setHistExpand] = useState<string|null>(null)
 
   const router = useRouter()
 
@@ -791,115 +792,104 @@ export function FichasClient() {
               placeholder="Filtrar por ingrediente..." style={{ maxWidth: 260 }} />
           </div>
 
-          {/* Tabla de historial */}
-          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)', overflowX: 'auto' }}>
-            {historial.length === 0
-              ? <div style={{ textAlign: 'center', color: 'var(--dim)', padding: 40, fontSize: 13 }}>
-                  No hay registros aún. Los precios se registran automáticamente cuando aplicás cambios en la pestaña "Actualizar precios".
-                </div>
-              : (() => {
-                  const filtrado = histFiltro
-                    ? historial.filter(h => h.nombre.toLowerCase().includes(histFiltro.toLowerCase()))
-                    : historial
-
-                  // Agrupar por ingrediente para mostrar tendencia
-                  const porIngrediente: Record<string, typeof historial> = {}
-                  filtrado.forEach(h => {
-                    if (!porIngrediente[h.nombre]) porIngrediente[h.nombre] = []
-                    porIngrediente[h.nombre].push(h)
-                  })
-
-                  return (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 560 }}>
-                      <thead>
-                        <tr>{['Ingrediente','Fecha','Precio','Variación','Notas'].map(h => (
-                          <th key={h} style={{ textAlign: 'left', padding: '7px 10px', fontSize: 10, color: 'var(--muted)', borderBottom: '1px solid var(--border)', letterSpacing: 1, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
-                        ))}</tr>
-                      </thead>
-                      <tbody>
-                        {filtrado.map((h, idx) => {
-                          // Calcular variación respecto al registro anterior del mismo ingrediente
-                          const anteriores = porIngrediente[h.nombre]
-                          const miIdx = anteriores.findIndex(x => x.id === h.id)
-                          const anterior = anteriores[miIdx + 1]
-                          const variacion = anterior ? ((h.precio - anterior.precio) / anterior.precio * 100) : null
-                          const sube = variacion !== null && variacion > 0
-
-                          return (
-                            <tr key={h.id} style={{ background: idx % 2 === 0 ? 'transparent' : 'var(--bg)' }}>
-                              <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontWeight: 'bold' }}>{h.nombre}</td>
-                              <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
-                                {new Date(h.fecha).toLocaleDateString('es-AR')}
-                              </td>
-                              <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--gold)', fontWeight: 'bold' }}>
-                                ${Math.round(h.precio).toLocaleString('es-AR')}
-                              </td>
-                              <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontSize: 12 }}>
-                                {variacion !== null
-                                  ? <span style={{ color: sube ? '#aa2020' : '#1a7a40', fontWeight: 'bold' }}>
-                                      {sube ? '↑' : '↓'} {Math.abs(variacion).toFixed(1)}%
-                                    </span>
-                                  : <span style={{ color: 'var(--dim)' }}>—</span>}
-                              </td>
-                              <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontSize: 11, color: 'var(--muted)', maxWidth: 200 }}>
-                                {h.notas || '—'}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  )
-                })()
-            }
-          </div>
-
-          {/* Resumen por ingrediente */}
-          {historial.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>
-                Variación acumulada por ingrediente
+          {historial.length === 0
+            ? <div style={{ textAlign: 'center', color: 'var(--dim)', padding: 40, fontSize: 13 }}>
+                No hay registros aún. Los precios se registran automáticamente cuando aplicás cambios en "Actualizar precios".
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))', gap: 10 }}>
-                {(() => {
-                  const porIngr: Record<string, number[]> = {}
-                  historial.forEach(h => {
-                    if (!porIngr[h.nombre]) porIngr[h.nombre] = []
-                    porIngr[h.nombre].push(h.precio)
-                  })
-                  return Object.entries(porIngr)
-                    .filter(([, precios]) => precios.length >= 2)
-                    .map(([nombre, precios]) => {
-                      const ultimo = precios[0]
-                      const primero = precios[precios.length - 1]
+            : (() => {
+                // Agrupar por ingrediente
+                const porIngr: Record<string, typeof historial> = {}
+                historial.forEach(h => {
+                  if (!porIngr[h.nombre]) porIngr[h.nombre] = []
+                  porIngr[h.nombre].push(h)
+                })
+
+                const filtrados = Object.entries(porIngr).filter(([nombre]) =>
+                  !histFiltro || nombre.toLowerCase().includes(histFiltro.toLowerCase())
+                )
+
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px,1fr))', gap: 10 }}>
+                    {filtrados.map(([nombre, registros]) => {
+                      const ultimo = registros[0].precio
+                      const primero = registros[registros.length - 1].precio
                       const varTotal = ((ultimo - primero) / primero * 100)
                       const sube = varTotal > 0
+                      const expandido = histExpand === nombre
+                      const sinVariacion = registros.length < 2
+
                       return (
-                        <div key={nombre} style={{ background: 'var(--card)', border: `1px solid ${sube ? 'rgba(170,32,32,.2)' : 'rgba(26,122,64,.2)'}`, borderRadius: 8, padding: '10px 14px', boxShadow: 'var(--shadow)' }}>
-                          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 6 }}>{nombre}</div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                            <div>
-                              <div style={{ fontSize: 10, color: 'var(--muted)' }}>Primer registro</div>
-                              <div style={{ color: 'var(--muted)' }}>${Math.round(primero).toLocaleString('es-AR')}</div>
-                            </div>
-                            <div style={{ textAlign: 'center' }}>
-                              <div style={{ fontSize: 16, fontWeight: 'bold', color: sube ? '#aa2020' : '#1a7a40' }}>
-                                {sube ? '↑' : '↓'} {Math.abs(varTotal).toFixed(1)}%
-                              </div>
-                              <div style={{ fontSize: 10, color: 'var(--dim)' }}>{precios.length} registros</div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontSize: 10, color: 'var(--muted)' }}>Último</div>
-                              <div style={{ color: 'var(--gold)', fontWeight: 'bold' }}>${Math.round(ultimo).toLocaleString('es-AR')}</div>
+                        <div key={nombre}
+                          onClick={() => setHistExpand(expandido ? null : nombre)}
+                          style={{ background: 'var(--card)', border: `1px solid ${sinVariacion ? 'var(--border)' : sube ? 'rgba(170,32,32,.25)' : 'rgba(26,122,64,.25)'}`, borderRadius: 8, padding: '12px 14px', boxShadow: 'var(--shadow)', cursor: 'pointer', transition: 'box-shadow .15s' }}>
+
+                          {/* Header de la card */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: sinVariacion ? 0 : 8 }}>
+                            <div style={{ fontSize: 12, fontWeight: 'bold', flex: 1 }}>{nombre}</div>
+                            <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
+                              {sinVariacion
+                                ? <div style={{ fontSize: 13, color: 'var(--gold)', fontWeight: 'bold' }}>${Math.round(ultimo).toLocaleString('es-AR')}</div>
+                                : <div style={{ fontSize: 16, fontWeight: 'bold', color: sube ? '#aa2020' : '#1a7a40' }}>
+                                    {sube ? '↑' : '↓'} {Math.abs(varTotal).toFixed(1)}%
+                                  </div>
+                              }
+                              <div style={{ fontSize: 10, color: 'var(--dim)' }}>{registros.length} {registros.length === 1 ? 'registro' : 'registros'}</div>
                             </div>
                           </div>
+
+                          {/* Resumen de precios */}
+                          {!sinVariacion && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                              <div>
+                                <div style={{ color: 'var(--dim)' }}>Inicial</div>
+                                <div style={{ color: 'var(--muted)' }}>${Math.round(primero).toLocaleString('es-AR')}</div>
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <div style={{ color: 'var(--dim)' }}>Actual</div>
+                                <div style={{ color: 'var(--gold)', fontWeight: 'bold' }}>${Math.round(ultimo).toLocaleString('es-AR')}</div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Detalle expandido al hacer click */}
+                          {expandido && (
+                            <div style={{ marginTop: 10, borderTop: '1px solid var(--borderl)', paddingTop: 10 }}
+                              onClick={e => e.stopPropagation()}>
+                              <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Historial completo</div>
+                              {registros.map((r, idx) => {
+                                const ant = registros[idx + 1]
+                                const varPct = ant ? ((r.precio - ant.precio) / ant.precio * 100) : null
+                                const subeR = varPct !== null && varPct > 0
+                                return (
+                                  <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: idx < registros.length - 1 ? '1px solid var(--borderl)' : 'none', fontSize: 12 }}>
+                                    <div style={{ color: 'var(--muted)' }}>
+                                      {new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                    </div>
+                                    <div style={{ fontWeight: 'bold', color: 'var(--gold)' }}>${Math.round(r.precio).toLocaleString('es-AR')}</div>
+                                    {varPct !== null
+                                      ? <div style={{ fontSize: 11, color: subeR ? '#aa2020' : '#1a7a40', fontWeight: 'bold', minWidth: 52, textAlign: 'right' }}>
+                                          {subeR ? '↑' : '↓'} {Math.abs(varPct).toFixed(1)}%
+                                        </div>
+                                      : <div style={{ fontSize: 11, color: 'var(--dim)', minWidth: 52, textAlign: 'right' }}>base</div>
+                                    }
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+
+                          {!expandido && registros.length > 1 && (
+                            <div style={{ fontSize: 10, color: 'var(--dim)', marginTop: 8, textAlign: 'center' }}>
+                              Tap para ver historial completo
+                            </div>
+                          )}
                         </div>
                       )
-                    })
-                })()}
-              </div>
-            </div>
-          )}
+                    })}
+                  </div>
+                )
+              })()
+          }
         </div>
       )}
 
