@@ -275,17 +275,33 @@ export function FichasClient() {
   const router = useRouter()
 
   useEffect(() => {
+    // Cargar productos
     supabase.from('productos').select('*').eq('activo', true).order('nombre')
       .then(({ data }) => {
       const todos = data && data.length ? data : PRODUCTOS_DEFAULT.map((p, i) => ({ ...p, id: i + 1 })) as Produto[]
-      // Mostrar solo elaborados (con receta): excluir JUMBALAY, CORTES, EMBUTIDOS
-      // excepto los que tengan tipo_producto='elaborado' explícito
       const conReceta = todos.filter((p: any) =>
         p.tipo_producto === 'elaborado' ||
         (!['JUMBALAY','CORTES','EMBUTIDOS'].includes(p.categoria) && p.tipo_producto !== 'reventa')
       )
-      setProds(conReceta as Producto[])
+      setProds(conReceta as Produto[])
     })
+    // Cargar últimos precios de ingredientes desde Supabase
+    supabase.from('ingredientes_precios')
+      .select('nombre, precio, fecha')
+      .order('fecha', { ascending: false })
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          // Tomar solo el registro más reciente por ingrediente
+          const ultimosPorIngr: Record<string, number> = {}
+          data.forEach((r: any) => {
+            if (!(r.nombre in ultimosPorIngr)) {
+              ultimosPorIngr[r.nombre] = r.precio
+            }
+          })
+          // Combinar con los precios hardcodeados (usar Supabase si existe, sino el hardcodeado)
+          setPreciosActuales(prev => ({ ...prev, ...ultimosPorIngr }))
+        }
+      })
     supabase.from('ordenes_produccion').select('*', { count: 'exact', head: true })
       .then(({ count }) => setPfLote('L' + String((count ?? 0) + 1).padStart(3, '0')))
   }, [])
@@ -355,7 +371,10 @@ export function FichasClient() {
       if (registrosHistorial.length > 0) {
         const { error: errHist } = await supabase.from('ingredientes_precios').insert(registrosHistorial)
         if (errHist) console.error('Error guardando historial:', errHist)
-        else console.log('Historial guardado:', registrosHistorial.length, 'registros')
+        else {
+          console.log('Historial guardado:', registrosHistorial.length, 'registros')
+          setHistCargado(false) // forzar recarga la próxima vez que se abra el historial
+        }
       } else {
         console.log('preciosEditados vacío al guardar historial — no se insertó nada')
       }
