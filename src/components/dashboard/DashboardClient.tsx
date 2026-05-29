@@ -90,23 +90,31 @@ export function DashboardClient() {
   const load = useCallback(async () => {
     setLoading(true)
     // Cargar datos en paralelo (sin join en venta_items para evitar error 400)
-    const [{ data: c }, { data: v }, { data: vm }, { data: vi }, { data: prodData }] = await Promise.all([
+    const [{ data: c }, { data: v }, { data: vm }, { data: ventaIds }, { data: prodData }] = await Promise.all([
       supabase.from('costos_fijos_mensuales').select('*').eq('periodo', periodo).order('categoria').order('concepto'),
       supabase.from('ventas').select('total, fecha').gte('fecha', periodo + '-01').lte('fecha', periodo + '-31'),
       supabase.from('ventas').select('medio_pago, total').gte('fecha', periodo + '-01').lte('fecha', periodo + '-31'),
-      supabase.from('venta_items').select('producto_id, cantidad_kg, precio_final').gte('created_at', periodo + '-01').lte('created_at', periodo + '-31'),
+      supabase.from('ventas').select('id').gte('fecha', periodo + '-01').lte('fecha', periodo + '-31'),
       supabase.from('productos').select('id, tipo_producto, costo, precio_venta').eq('activo', true),
     ])
     setCostos((c || []) as CostoFijo[])
     setVentas((v || []) as VentaMes[])
-    // Cruzar venta_items con productos en memoria (sin join Supabase)
+    // Obtener venta_items por IDs de ventas del período
     const prodMap: Record<number, any> = {}
     ;(prodData || []).forEach((p: any) => { prodMap[p.id] = p })
-    const viEnriquecido = (vi || []).map((item: any) => ({
-      ...item,
-      productos: prodMap[item.producto_id] || null
-    }))
-    setVentaItems(viEnriquecido)
+    const ids = (ventaIds || []).map((v: any) => v.id)
+    if (ids.length > 0) {
+      const { data: vi } = await supabase.from('venta_items')
+        .select('producto_id, cantidad_kg, precio_final')
+        .in('venta_id', ids)
+      const viEnriquecido = (vi || []).map((item: any) => ({
+        ...item,
+        productos: prodMap[item.producto_id] || null
+      }))
+      setVentaItems(viEnriquecido)
+    } else {
+      setVentaItems([])
+    }
     const medios = (vm || []) as {medio_pago: string, total: number}[]
     setVentasPorMedio(medios)
     // Calcular % MP automáticamente desde ventas reales
