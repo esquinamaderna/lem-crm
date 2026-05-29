@@ -89,20 +89,23 @@ export function DashboardClient() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: c }, { data: v }, { data: vm }, { data: vi }] = await Promise.all([
+    // Cargar datos en paralelo (sin join en venta_items para evitar error 400)
+    const [{ data: c }, { data: v }, { data: vm }, { data: vi }, { data: prodData }] = await Promise.all([
       supabase.from('costos_fijos_mensuales').select('*').eq('periodo', periodo).order('categoria').order('concepto'),
       supabase.from('ventas').select('total, fecha').gte('fecha', periodo + '-01').lte('fecha', periodo + '-31'),
       supabase.from('ventas').select('medio_pago, total').gte('fecha', periodo + '-01').lte('fecha', periodo + '-31'),
-      supabase.from('venta_items').select('producto_id, cantidad_kg, precio_final, productos(tipo_producto, costo, precio_venta)').gte('created_at', periodo + '-01').lte('created_at', periodo + '-31'),
+      supabase.from('venta_items').select('producto_id, cantidad_kg, precio_final').gte('created_at', periodo + '-01').lte('created_at', periodo + '-31'),
+      supabase.from('productos').select('id, tipo_producto, costo, precio_venta').eq('activo', true),
     ])
     setCostos((c || []) as CostoFijo[])
     setVentas((v || []) as VentaMes[])
-    // Enriquecer venta_items con datos de productos (sin join Supabase)
-    const prodsList = prods && prods.length ? prods : []
-    const viEnriquecido = (vi || []).map((item: any) => {
-      const prod = prodsList.find((p: any) => p.id === item.producto_id)
-      return { ...item, productos: prod ? { tipo_producto: prod.tipo_producto, costo: prod.costo, precio_venta: prod.precio_venta } : null }
-    })
+    // Cruzar venta_items con productos en memoria (sin join Supabase)
+    const prodMap: Record<number, any> = {}
+    ;(prodData || []).forEach((p: any) => { prodMap[p.id] = p })
+    const viEnriquecido = (vi || []).map((item: any) => ({
+      ...item,
+      productos: prodMap[item.producto_id] || null
+    }))
     setVentaItems(viEnriquecido)
     const medios = (vm || []) as {medio_pago: string, total: number}[]
     setVentasPorMedio(medios)
