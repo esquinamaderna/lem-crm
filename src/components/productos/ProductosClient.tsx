@@ -105,7 +105,7 @@ export function ProductosClient() {
       {/* Tabla desktop */}
       <div className="resp-table" style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,padding:14,overflowX:'auto'}}>
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,minWidth:600}}>
-          <thead><tr>{['Producto','Cat.','Unidad','PV','Costo','FC%','Stock','Estado',''].map(h=><th key={h} style={{fontSize:10,letterSpacing:'1.2px',textTransform:'uppercase',color:'var(--muted)',textAlign:'left',padding:'7px 10px',borderBottom:'1px solid var(--border)'}}>{h}</th>)}</tr></thead>
+          <thead><tr>{['Producto','Cat.','Tipo','PV','Costo','FC%','Stock','Unidad',''].map(h=><th key={h} style={{fontSize:10,letterSpacing:'1.2px',textTransform:'uppercase',color:'var(--muted)',textAlign:'left',padding:'7px 10px',borderBottom:'1px solid var(--border)'}}>{h}</th>)}</tr></thead>
           <tbody>
             {filtered.map(p=>{
               const fc=p.costo/p.precio_venta; const stk=p.stock_kg||0
@@ -114,13 +114,14 @@ export function ProductosClient() {
               return <tr key={p.id}>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:6,height:6,borderRadius:'50%',background:CAT_COLOR[p.categoria]||'var(--dim)',flexShrink:0}} />{p.nombre}</div></td>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:4,fontSize:10,color:CAT_COLOR[p.categoria],border:`1px solid ${CAT_COLOR[p.categoria]}44`,background:`${CAT_COLOR[p.categoria]}18`}}>{p.categoria}</span></td>
-                <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{fontSize:10,padding:'2px 6px',borderRadius:4,background:'var(--bg)',border:'1px solid var(--border)'}}>{(p as any).unidad_venta||'kg'}</span></td>
-              <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{fontSize:10,padding:'2px 6px',borderRadius:4,background:((p as any).tipo_producto || (['JUMBALAY','CORTES','EMBUTIDOS'].includes(p.categoria) ? 'reventa' : 'elaborado')) === 'reventa'?'rgba(30,100,180,.08)':'rgba(26,122,64,.08)',border:((p as any).tipo_producto || (['JUMBALAY','CORTES','EMBUTIDOS'].includes(p.categoria) ? 'reventa' : 'elaborado')) === 'reventa'?'1px solid rgba(30,100,180,.25)':'1px solid rgba(26,122,64,.25)',color:((p as any).tipo_producto || (['JUMBALAY','CORTES','EMBUTIDOS'].includes(p.categoria) ? 'reventa' : 'elaborado')) === 'reventa'?'#1050a0':'#1a7a40'}}>{((p as any).tipo_producto || (['JUMBALAY','CORTES','EMBUTIDOS'].includes(p.categoria) ? 'reventa' : 'elaborado'))}</span></td>
+                {(()=>{ const tipo = (p as any).tipo_producto || (['JUMBALAY','CORTES','EMBUTIDOS','PAPAS'].includes(p.categoria) ? 'reventa' : 'elaborado'); const esRev = tipo==='reventa'; return (
+                  <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{fontSize:10,padding:'2px 6px',borderRadius:4,background:esRev?'rgba(30,100,180,.08)':'rgba(26,122,64,.08)',border:esRev?'1px solid rgba(30,100,180,.25)':'1px solid rgba(26,122,64,.25)',color:esRev?'#1050a0':'#1a7a40'}}>{tipo}</span></td>
+                )})()}
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)',color:'var(--gold)'}}>{fmt(p.precio_venta)}</td>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}>{fmt(p.costo)}</td>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:4,fontSize:10,color:fcColor,border:`1px solid ${fcColor}44`,background:`${fcColor}18`}}>{(fc*100).toFixed(0)}%</span></td>
-                <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)',color:stkColor}}>{fmtN(stk)} kg</td>
-                <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:4,fontSize:10,color:stkColor,border:`1px solid ${stkColor}44`,background:`${stkColor}18`}}>{stk<2?'Bajo':stk<5?'Medio':'OK'}</span></td>
+                <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)',color:stkColor}}>{fmtN(stk, (p as any).unidad_venta==='u' ? 0 : 1)} {(p as any).unidad_venta||'kg'}</td>
+                <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{fontSize:10,padding:'2px 6px',borderRadius:4,background:'var(--bg)',border:'1px solid var(--border)',color:'var(--muted)'}}>{(p as any).unidad_venta||'kg'}</span></td>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><button onClick={()=>abrirStock(p)} style={{...b(),padding:'4px 8px',fontSize:11}}>📦 Stock</button></td>
               </tr>
             })}
