@@ -337,6 +337,8 @@ export function FichasClient() {
   // ── Aplicar cambios de precio en Supabase ──
   async function aplicarCambios() {
     setApplyingPrecios(true)
+    console.log('aplicarCambios - preciosEditados:', preciosEditados)
+    console.log('aplicarCambios - impacto:', impacto.length, 'productos')
     try {
       // Actualizar precios de ingredientes en memoria
       const nuevosPreciosActuales = { ...preciosActuales, ...preciosEditados }
@@ -351,7 +353,11 @@ export function FichasClient() {
         notas: `Actualizado desde Fichas. Precio anterior: $${Math.round(preciosActuales[nombre] || 0).toLocaleString('es-AR')}`
       }))
       if (registrosHistorial.length > 0) {
-        await supabase.from('ingredientes_precios').insert(registrosHistorial)
+        const { error: errHist } = await supabase.from('ingredientes_precios').insert(registrosHistorial)
+        if (errHist) console.error('Error guardando historial:', errHist)
+        else console.log('Historial guardado:', registrosHistorial.length, 'registros')
+      } else {
+        console.log('preciosEditados vacío al guardar historial — no se insertó nada')
       }
 
       // Actualizar cada producto afectado en Supabase
