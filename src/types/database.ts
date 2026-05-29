@@ -61,7 +61,7 @@ export interface Producto {
   receta?: string[] | string
   activo: boolean
   visible_catalogo: boolean
-  unidad: 'kg' | 'u'
+  unidad_venta?: 'kg' | 'u' | 'L'
   unidad_venta: 'kg' | 'u' | 'L'
   created_at?: string
   updated_at?: string

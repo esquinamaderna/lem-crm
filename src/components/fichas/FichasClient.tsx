@@ -432,7 +432,7 @@ export function FichasClient() {
                     <span>Costo: <strong>{fmt(prod.costo)}/kg</strong></span>
                     <span>FC: <strong>{(prod.costo / prod.precio_venta * 100).toFixed(0)}%</strong></span>
                     <span>Margen: <strong>{fmt(prod.precio_venta - prod.costo)}/kg</strong></span>
-                    <span>Stock: <strong style={{ color: prod.stock_kg < 2 ? '#aa2020' : prod.stock_kg < 5 ? '#a85010' : '#1a7a40' }}>{fmtN(prod.stock_kg)} kg</strong></span>
+                    <span>Stock: <strong style={{ color: prod.stock_kg < 2 ? '#aa2020' : prod.stock_kg < 5 ? '#a85010' : '#1a7a40' }}>{fmtN(prod.stock_kg)} {(prod as any).unidad_venta === 'u' ? 'u' : 'kg'}</strong></span>
                     <span>Vida: <strong>{prod.vida_util_dias} días</strong></span>
                   </div>
                 ) : (
@@ -537,7 +537,7 @@ export function FichasClient() {
               <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)' }}>
                 <div style={{ marginBottom: 14, padding: '10px 14px', background: 'var(--gold-bg)', border: '1px solid var(--gold-d)', borderRadius: 8, fontSize: 13 }}>
                   <strong style={{ color: 'var(--gold)' }}>{prod.nombre}</strong><br />
-                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>Stock: {fmtN(prod.stock_kg)} kg · Vida útil: {prod.vida_util_dias} días</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 12 }}>Stock: {fmtN(prod.stock_kg)} {(prod as any).unidad_venta === 'u' ? 'u' : 'kg'} · Vida útil: {prod.vida_util_dias} días</span>
                   {kgProt > 0 && receta && <div style={{ marginTop: 6, fontSize: 12 }}>Desde calculadora: <strong style={{ color: 'var(--gold)' }}>{fmtN(kgProducto, 2)} kg</strong></div>}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10, marginBottom: 10 }}>

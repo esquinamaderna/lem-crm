@@ -96,12 +96,12 @@ export function PedidosClient() {
     const id = parseInt(fProdSel)
     const p = productos.find((x: any) => x.id === id)
     if (!p || !fKg || fKg <= 0) return
-    const esU = (p as any).unidad === 'u'
+    const esU = (p as any).unidad_venta === 'u'
     const qty = esU ? Math.round(fKg) || 1 : parseFloat(fKg.toString()) || 0.5
     setFItems(prev => {
       const ex = prev.find(i => i.id === id)
       if (ex) return prev.map(i => i.id === id ? { ...i, qty: esU ? i.qty + 1 : parseFloat((i.qty + qty).toFixed(3)) } : i)
-      return [...prev, { id, nombre: (p as any).nombre, pv: (p as any).precio_venta, qty, descPct: 0, descMonto: 0, unidad: (p as any).unidad || 'kg' }]
+      return [...prev, { id, nombre: (p as any).nombre, pv: (p as any).precio_venta, qty, descPct: 0, descMonto: 0, unidad: (p as any).unidad_venta || 'kg' }]
     })
   }
 

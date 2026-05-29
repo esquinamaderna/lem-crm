@@ -1,13 +1,16 @@
 -- ══════════════════════════════════════════════════════════
--- Agregar campo unidad a productos
--- 'kg' = por peso (default), 'u' = por unidad
+-- Agregar campo unidad_venta a productos
+-- 'kg' = por peso (default), 'u' = por unidad, 'L' = por litro
 -- ══════════════════════════════════════════════════════════
 
-ALTER TABLE productos ADD COLUMN IF NOT EXISTS unidad text NOT NULL DEFAULT 'kg'
-  CHECK (unidad IN ('kg', 'u'));
+-- Si ya existe 'unidad' del paso anterior, renombrar
+ALTER TABLE productos RENAME COLUMN IF EXISTS unidad TO unidad_venta;
 
--- Todos los Jumbalay por defecto son 'u' excepto los 1500g y 3000g
-UPDATE productos SET unidad = 'u'
+-- Si no existe, crear
+ALTER TABLE productos ADD COLUMN IF NOT EXISTS unidad_venta text NOT NULL DEFAULT 'kg';
+
+-- Todos los Jumbalay frascos pequeños = por unidad
+UPDATE productos SET unidad_venta = 'u'
 WHERE categoria = 'JUMBALAY'
   AND nombre NOT LIKE '%1500g%'
   AND nombre NOT LIKE '%1400g%'
@@ -17,5 +20,7 @@ WHERE categoria = 'JUMBALAY'
   AND nombre NOT LIKE '%4000g%';
 
 -- Verificar
-SELECT unidad, COUNT(*) FROM productos GROUP BY unidad ORDER BY unidad;
-SELECT nombre, unidad FROM productos WHERE categoria = 'JUMBALAY' ORDER BY unidad, nombre;
+SELECT nombre, categoria, unidad_venta
+FROM productos
+WHERE categoria = 'JUMBALAY'
+ORDER BY unidad_venta, nombre;

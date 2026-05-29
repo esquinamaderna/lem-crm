@@ -82,7 +82,7 @@ export function POSClient() {
 
   const addToCart = (p: Producto) => {
     if (!p.stock_kg || p.stock_kg <= 0) return
-    const esU = (p as any).unidad === 'u'
+    const esU = (p as any).unidad_venta === 'u'
     const step = esU ? 1 : 0.5
     setCart(prev => {
       const ex = prev.find(c => c.id === p.id)
@@ -91,10 +91,10 @@ export function POSClient() {
       if (qtyNueva > p.stock_kg) {
         const maxPermitido = esU ? Math.floor(p.stock_kg) : parseFloat(p.stock_kg.toFixed(3))
         if (ex) return prev.map(c => c.id === p.id ? { ...c, qty: maxPermitido } : c)
-        return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: Math.min(step, maxPermitido), descPct: 0, descMonto: 0, unidad: (p as any).unidad || 'kg' }]
+        return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: Math.min(step, maxPermitido), descPct: 0, descMonto: 0, unidad: (p as any).unidad_venta || 'kg' }]
       }
       if (ex) return prev.map(c => c.id === p.id ? { ...c, qty: qtyNueva } : c)
-      return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: step, descPct: 0, descMonto: 0, unidad: (p as any).unidad || 'kg' }]
+      return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: step, descPct: 0, descMonto: 0, unidad: (p as any).unidad_venta || 'kg' }]
     })
   }
 
@@ -390,7 +390,7 @@ export function POSClient() {
                   <div style={{ fontSize: 12, lineHeight: 1.3, marginBottom: 6, paddingRight: 16 }}>{p.nombre}</div>
                   <div style={{ fontSize: 15, color: sinStock ? '#bbb' : 'var(--gold)' }}>{fmt(p.precio_venta)}</div>
                   <div style={{ fontSize: 10, marginTop: 2, color: barCol, fontWeight: stockBajo ? 'bold' : 'normal' }}>
-                    {sinStock ? 'Sin stock' : `Stock: ${fmtN(stk)}${(p as any).unidad === 'u' ? ' u' : ' kg'}`}
+                    {sinStock ? 'Sin stock' : `Stock: ${fmtN(stk)}${(p as any).unidad_venta === 'u' ? ' u' : ' kg'}`}
                   </div>
                   <div style={{ height: 3, background: 'var(--borderl)', borderRadius: 2, marginTop: 4 }}>
                     <div style={{ height: '100%', borderRadius: 2, width: `${Math.min(100, stk / 20 * 100)}%`, background: barCol }} />
