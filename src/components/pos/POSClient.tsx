@@ -81,19 +81,20 @@ export function POSClient() {
   }
 
   const addToCart = (p: Producto) => {
-    if (!p.stock_kg || p.stock_kg <= 0) return // sin stock, bloqueado visualmente
+    if (!p.stock_kg || p.stock_kg <= 0) return
+    const esU = (p as any).unidad === 'u'
+    const step = esU ? 1 : 0.5
     setCart(prev => {
       const ex = prev.find(c => c.id === p.id)
       const qtyActual = ex ? ex.qty : 0
-      const qtyNueva = parseFloat((qtyActual + 0.5).toFixed(3))
+      const qtyNueva = esU ? qtyActual + 1 : parseFloat((qtyActual + step).toFixed(3))
       if (qtyNueva > p.stock_kg) {
-        // No superar el stock disponible
-        const maxPermitido = parseFloat(p.stock_kg.toFixed(3))
+        const maxPermitido = esU ? Math.floor(p.stock_kg) : parseFloat(p.stock_kg.toFixed(3))
         if (ex) return prev.map(c => c.id === p.id ? { ...c, qty: maxPermitido } : c)
-        return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: Math.min(0.5, maxPermitido), descPct: 0, descMonto: 0 }]
+        return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: Math.min(step, maxPermitido), descPct: 0, descMonto: 0, unidad: (p as any).unidad || 'kg' }]
       }
       if (ex) return prev.map(c => c.id === p.id ? { ...c, qty: qtyNueva } : c)
-      return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: 0.5, descPct: 0, descMonto: 0 }]
+      return [...prev, { id: p.id, nombre: p.nombre, pv: p.precio_venta, qty: step, descPct: 0, descMonto: 0, unidad: (p as any).unidad || 'kg' }]
     })
   }
 
@@ -132,8 +133,10 @@ export function POSClient() {
           </div>${detalle}
         </div>`
       }
+      const unidad = (i as any).unidad || 'kg'
+      const qtyStr = unidad === 'u' ? `${i.qty} u` : `${fmtN(i.qty, 3)} ${unidad}`
       return `<div style="display:flex;justify-content:space-between;margin-bottom:2px">
-        <span>${i.nombre} × ${fmtN(i.qty, 3)} kg</span>
+        <span>${i.nombre} × ${qtyStr}</span>
         <span>${desc > 0 ? `<s style="color:#999;font-size:10px">${fmt(sub)}</s> ${fmt(net)}` : fmt(sub)}</span>
       </div>`
     }).join('')
@@ -154,7 +157,8 @@ export function POSClient() {
     // Validar stock antes de cobrar
     const sinStock = cart.filter(ci => {
       const prod = productos.find(p => p.id === ci.id)
-      return prod && ci.qty > prod.stock_kg
+      if (!prod || (ci as any).esCombo) return false
+      return ci.qty > prod.stock_kg
     })
     if (sinStock.length > 0) {
       const nombres = sinStock.map(ci => {
@@ -228,22 +232,28 @@ export function POSClient() {
                   {/* Fila cantidad */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                     <div style={{ flex: 1, fontSize: 11, lineHeight: 1.3 }}>{i.nombre}</div>
-                    <button onClick={() => (i as any).esCombo ? setCart(prev => prev.map(c => c.id === i.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c)) : changeQty(i.id, -0.1)} style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>−</button>
-                    {(i as any).esCombo ? (
-                      <input type="number" value={i.qty} step="1" min="1"
-                        onChange={e => setCart(prev => prev.map(c => c.id === i.id ? { ...c, qty: Math.max(1, parseInt(e.target.value) || 1) } : c))}
-                        style={{ width: 48, textAlign: 'center', fontSize: 11, padding: '2px 3px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 4 }} />
-                    ) : (() => {
-                      const prod = productos.find(p => p.id === i.id)
+                    {(() => {
+                      const esCombo = (i as any).esCombo
+                      const unidad = esCombo ? 'u' : ((i as any).unidad || 'kg')
+                      const esPorUnidad = esCombo || unidad === 'u' || unidad === 'L'
+                      const step = esPorUnidad ? 1 : 0.1
+                      const prod = !esCombo ? productos.find(p => p.id === i.id) : null
                       const sobreStock = prod && i.qty > prod.stock_kg
-                      return (
-                        <input type="number" value={i.qty} step="0.1" min="0.1" onChange={e => setQtyManual(i.id, e.target.value)}
+                      return (<>
+                        <button onClick={() => setCart(prev => prev.map(c => c.id === i.id ? { ...c, qty: Math.max(esPorUnidad ? 1 : 0.1, parseFloat((c.qty - step).toFixed(3))) } : c))}
+                          style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>−</button>
+                        <input type="number" value={i.qty} step={step} min={step}
+                          onChange={e => {
+                            const val = esPorUnidad ? (parseInt(e.target.value) || 1) : (parseFloat(e.target.value) || 0.1)
+                            setCart(prev => prev.map(c => c.id === i.id ? { ...c, qty: val } : c))
+                          }}
                           style={{ width: 48, textAlign: 'center', fontSize: 11, padding: '2px 3px', background: sobreStock ? 'rgba(170,32,32,.08)' : 'var(--surface)', border: `1px solid ${sobreStock ? '#aa2020' : 'var(--border)'}`, color: sobreStock ? '#aa2020' : 'var(--text)', borderRadius: 4 }}
-                          title={sobreStock ? `Stock disponible: ${fmtN(prod?.stock_kg || 0, 1)} kg` : ''} />
-                      )
+                          title={sobreStock ? `Stock: ${fmtN(prod?.stock_kg || 0, 1)} ${unidad}` : ''} />
+                        <span style={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>{unidad}</span>
+                        <button onClick={() => setCart(prev => prev.map(c => c.id === i.id ? { ...c, qty: parseFloat((c.qty + step).toFixed(3)) } : c))}
+                          style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>+</button>
+                      </>)
                     })()}
-                    <span style={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>{(i as any).esCombo ? 'u' : 'kg'}</span>
-                    <button onClick={() => (i as any).esCombo ? setCart(prev => prev.map(c => c.id === i.id ? { ...c, qty: c.qty + 1 } : c)) : changeQty(i.id, 0.1)} style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>+</button>
                     <div style={{ minWidth: 55, textAlign: 'right', fontSize: 11, flexShrink: 0, color: desc > 0 ? 'var(--muted)' : 'var(--gold)', textDecoration: desc > 0 ? 'line-through' : 'none' }}>{fmt(sub)}</div>
                     {desc > 0 && <div style={{ minWidth: 50, textAlign: 'right', color: 'var(--gold)', fontSize: 12, fontWeight: 'bold', flexShrink: 0 }}>{fmt(net)}</div>}
                     <button onClick={() => removeFromCart(i.id)} style={{ color: '#aa2020', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>✕</button>
@@ -306,7 +316,9 @@ export function POSClient() {
                 const detalle = comboItems.map((ci: any) => `<div style="padding-left:16px;font-size:11px;color:#555">· ${ci.producto_nombre} ${fmtN(ci.cantidad_kg * 1000, 0)}g</div>`).join('')
                 return `<div style="margin-bottom:6px"><div style="display:flex;gap:8px;font-size:13px"><strong style="min-width:60px">× ${i.qty}</strong><span>🍱 ${i.nombre}</span></div>${detalle}</div>`
               }
-              return `<div style="display:flex;gap:8px;margin-bottom:4px;font-size:13px"><strong style="min-width:60px">${fmtN(i.qty, 3)} kg</strong><span>${i.nombre}</span></div>`
+              const unidadC = (i as any).unidad || 'kg'
+              const qtyComanda = unidadC === 'u' ? `${i.qty} u` : `${fmtN(i.qty, 3)} ${unidadC}`
+              return `<div style="display:flex;gap:8px;margin-bottom:4px;font-size:13px"><strong style="min-width:60px">${qtyComanda}</strong><span>${i.nombre}</span></div>`
             }).join('')
             setComandaHTML(`<div style="font-family:'Courier New',monospace;border:2px solid #000;padding:10px;max-width:270px;background:#fff;color:#000"><div style="text-align:center;font-weight:bold;font-size:15px;border-bottom:2px solid #000;padding-bottom:5px;margin-bottom:7px">COMANDA · ${nowTime()}</div><div style="font-size:12px;margin-bottom:6px">Cliente: <strong>${cliente || 'Mostrador'}</strong></div><div style="border-top:1px dashed #000;padding-top:6px">${rows}</div><div style="border-top:2px solid #000;margin-top:6px;padding-top:5px;font-size:13px;font-weight:bold">TOTAL: ${fmt(total)}</div></div>`)
             setModal('comanda')
@@ -378,7 +390,7 @@ export function POSClient() {
                   <div style={{ fontSize: 12, lineHeight: 1.3, marginBottom: 6, paddingRight: 16 }}>{p.nombre}</div>
                   <div style={{ fontSize: 15, color: sinStock ? '#bbb' : 'var(--gold)' }}>{fmt(p.precio_venta)}</div>
                   <div style={{ fontSize: 10, marginTop: 2, color: barCol, fontWeight: stockBajo ? 'bold' : 'normal' }}>
-                    {sinStock ? 'Sin stock' : `Stock: ${fmtN(stk)} kg`}
+                    {sinStock ? 'Sin stock' : `Stock: ${fmtN(stk)}${(p as any).unidad === 'u' ? ' u' : ' kg'}`}
                   </div>
                   <div style={{ height: 3, background: 'var(--borderl)', borderRadius: 2, marginTop: 4 }}>
                     <div style={{ height: '100%', borderRadius: 2, width: `${Math.min(100, stk / 20 * 100)}%`, background: barCol }} />

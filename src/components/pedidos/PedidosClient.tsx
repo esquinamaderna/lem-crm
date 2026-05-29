@@ -96,10 +96,12 @@ export function PedidosClient() {
     const id = parseInt(fProdSel)
     const p = productos.find((x: any) => x.id === id)
     if (!p || !fKg || fKg <= 0) return
+    const esU = (p as any).unidad === 'u'
+    const qty = esU ? Math.round(fKg) || 1 : parseFloat(fKg.toString()) || 0.5
     setFItems(prev => {
       const ex = prev.find(i => i.id === id)
-      if (ex) return prev.map(i => i.id === id ? { ...i, qty: parseFloat((i.qty + fKg).toFixed(3)) } : i)
-      return [...prev, { id, nombre: (p as any).nombre, pv: (p as any).precio_venta, qty: parseFloat(fKg.toString()) || 0.5, descPct: 0, descMonto: 0 }]
+      if (ex) return prev.map(i => i.id === id ? { ...i, qty: esU ? i.qty + 1 : parseFloat((i.qty + qty).toFixed(3)) } : i)
+      return [...prev, { id, nombre: (p as any).nombre, pv: (p as any).precio_venta, qty, descPct: 0, descMonto: 0, unidad: (p as any).unidad || 'kg' }]
     })
   }
 
@@ -364,7 +366,7 @@ export function PedidosClient() {
                           <button onClick={() => setFItems(prev => prev.map(x => x.id === i.id ? { ...x, qty: x.qty + 1 } : x))} style={{ width:20, height:20, borderRadius:3, border:'1px solid var(--border)', background:'var(--surface)', cursor:'pointer', fontSize:12 }}>+</button>
                         </span>
                       ) : (
-                        <span style={{ color:'var(--muted)', fontWeight:'normal', marginLeft:6 }}>{fmtN(i.qty, 3)} kg</span>
+                        <span style={{ color:'var(--muted)', fontWeight:'normal', marginLeft:6 }}>{fmtN(i.qty, (i as any).unidad==='u' ? 0 : 3)} {(i as any).unidad||'kg'}</span>
                       )}
                     </div>
                     <div style={{ color: desc > 0 ? 'var(--muted)' : 'var(--gold)', textDecoration: desc > 0 ? 'line-through' : 'none', fontSize:12 }}>{fmt(sub)}</div>
