@@ -6,7 +6,7 @@ import { fmt, fmtN, today, nowTime, CAT_COLOR } from '@/lib/utils'
 import type { Producto, CartItem } from '@/types/database'
 import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 
-const CATS = ['Todos', 'VACUNO', 'CERDO', 'POLLO', 'PAPAS', 'JUMBALAY', 'PACKS']
+const CATS = ['Todos', 'VACUNO', 'CERDO', 'POLLO', 'PAPAS', 'JUMBALAY', 'PACKS', 'CORTES', 'EMBUTIDOS']
 const PAGOS = ['Efectivo', 'Transferencia', 'Transferencia MP', 'MercadoPago', 'Débito', 'Crédito']
 const btnSm: React.CSSProperties = { padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif' }
 
@@ -228,8 +228,12 @@ export function POSClient() {
                   {/* Fila cantidad */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                     <div style={{ flex: 1, fontSize: 11, lineHeight: 1.3 }}>{i.nombre}</div>
-                    <button onClick={() => changeQty(i.id, -0.1)} style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>−</button>
-                    {(() => {
+                    <button onClick={() => (i as any).esCombo ? setCart(prev => prev.map(c => c.id === i.id ? { ...c, qty: Math.max(1, c.qty - 1) } : c)) : changeQty(i.id, -0.1)} style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>−</button>
+                    {(i as any).esCombo ? (
+                      <input type="number" value={i.qty} step="1" min="1"
+                        onChange={e => setCart(prev => prev.map(c => c.id === i.id ? { ...c, qty: Math.max(1, parseInt(e.target.value) || 1) } : c))}
+                        style={{ width: 48, textAlign: 'center', fontSize: 11, padding: '2px 3px', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 4 }} />
+                    ) : (() => {
                       const prod = productos.find(p => p.id === i.id)
                       const sobreStock = prod && i.qty > prod.stock_kg
                       return (
@@ -238,8 +242,8 @@ export function POSClient() {
                           title={sobreStock ? `Stock disponible: ${fmtN(prod?.stock_kg || 0, 1)} kg` : ''} />
                       )
                     })()}
-                    <span style={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>kg</span>
-                    <button onClick={() => changeQty(i.id, 0.1)} style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>+</button>
+                    <span style={{ fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>{(i as any).esCombo ? 'u' : 'kg'}</span>
+                    <button onClick={() => (i as any).esCombo ? setCart(prev => prev.map(c => c.id === i.id ? { ...c, qty: c.qty + 1 } : c)) : changeQty(i.id, 0.1)} style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>+</button>
                     <div style={{ minWidth: 55, textAlign: 'right', fontSize: 11, flexShrink: 0, color: desc > 0 ? 'var(--muted)' : 'var(--gold)', textDecoration: desc > 0 ? 'line-through' : 'none' }}>{fmt(sub)}</div>
                     {desc > 0 && <div style={{ minWidth: 50, textAlign: 'right', color: 'var(--gold)', fontSize: 12, fontWeight: 'bold', flexShrink: 0 }}>{fmt(net)}</div>}
                     <button onClick={() => removeFromCart(i.id)} style={{ color: '#aa2020', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>✕</button>

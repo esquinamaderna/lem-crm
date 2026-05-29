@@ -355,7 +355,18 @@ export function PedidosClient() {
               return (
                 <div key={i.id} style={{ padding:'8px 0', borderBottom:'1px solid var(--borderl)' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5, fontSize:13 }}>
-                    <div style={{ flex:1, fontWeight:'bold' }}>{i.nombre} — {fmtN(i.qty, 3)} kg</div>
+                    <div style={{ flex:1, fontWeight:'bold' }}>
+                      {i.nombre}
+                      {(i as any).esCombo ? (
+                        <span style={{ marginLeft: 8 }}>
+                          <button onClick={() => setFItems(prev => prev.map(x => x.id === i.id ? { ...x, qty: Math.max(1, x.qty - 1) } : x))} style={{ width:20, height:20, borderRadius:3, border:'1px solid var(--border)', background:'var(--surface)', cursor:'pointer', fontSize:12 }}>−</button>
+                          <span style={{ margin:'0 6px', fontWeight:'bold' }}>{i.qty} u</span>
+                          <button onClick={() => setFItems(prev => prev.map(x => x.id === i.id ? { ...x, qty: x.qty + 1 } : x))} style={{ width:20, height:20, borderRadius:3, border:'1px solid var(--border)', background:'var(--surface)', cursor:'pointer', fontSize:12 }}>+</button>
+                        </span>
+                      ) : (
+                        <span style={{ color:'var(--muted)', fontWeight:'normal', marginLeft:6 }}>{fmtN(i.qty, 3)} kg</span>
+                      )}
+                    </div>
                     <div style={{ color: desc > 0 ? 'var(--muted)' : 'var(--gold)', textDecoration: desc > 0 ? 'line-through' : 'none', fontSize:12 }}>{fmt(sub)}</div>
                     {desc > 0 && <div style={{ color:'var(--gold)', fontWeight:'bold' }}>{fmt(net)}</div>}
                     <button onClick={() => setFItems(prev => prev.filter(x => x.id !== i.id))} style={{ color:'#aa2020', background:'none', border:'none', cursor:'pointer', fontSize:16, flexShrink:0 }}>✕</button>
