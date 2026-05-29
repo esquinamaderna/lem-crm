@@ -97,7 +97,13 @@ export function DashboardClient() {
     ])
     setCostos((c || []) as CostoFijo[])
     setVentas((v || []) as VentaMes[])
-    setVentaItems((vi || []) as any[])
+    // Enriquecer venta_items con datos de productos (sin join Supabase)
+    const prodsList = prods && prods.length ? prods : []
+    const viEnriquecido = (vi || []).map((item: any) => {
+      const prod = prodsList.find((p: any) => p.id === item.producto_id)
+      return { ...item, productos: prod ? { tipo_producto: prod.tipo_producto, costo: prod.costo, precio_venta: prod.precio_venta } : null }
+    })
+    setVentaItems(viEnriquecido)
     const medios = (vm || []) as {medio_pago: string, total: number}[]
     setVentasPorMedio(medios)
     // Calcular % MP automáticamente desde ventas reales
@@ -450,7 +456,7 @@ export function DashboardClient() {
             )}
 
             {/* DOS RESULTADOS — margen operativo y realidad de caja */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
+            <div className="resultado-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
 
               {/* Columna 1: Ganancia operativa (sin reposición) */}
               <div style={{ padding: '16px 18px', borderRadius: 10, background: enNegrosOperativo ? 'rgba(26,122,64,.08)' : 'rgba(170,32,32,.06)', border: `2px solid ${enNegrosOperativo ? 'rgba(26,122,64,.3)' : 'rgba(170,32,32,.3)'}` }}>

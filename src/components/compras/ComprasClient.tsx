@@ -228,7 +228,7 @@ export function ComprasClient() {
       </div>
 
       {tab === 'compra' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="compras-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
           {/* Columna izquierda: Producción planificada → ingredientes */}
           <div>

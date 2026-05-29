@@ -122,3 +122,37 @@ table { width: 100%; }
   #print-area, #print-area * { display: block !important; }
   #print-area { color: #000; background: #fff; font-size: 12px; padding: 4mm; }
 }
+
+/* ── Responsive mobile fixes ── */
+@media (max-width: 767px) {
+  /* Dashboard: cascada de resultado */
+  .dashboard-cols {
+    grid-template-columns: 1fr !important;
+  }
+  /* Dashboard: dos columnas resultado → stack */
+  .resultado-grid {
+    grid-template-columns: 1fr !important;
+  }
+  /* Producción y Compras: dos columnas → stack */
+  .fichas-grid,
+  .compras-grid {
+    grid-template-columns: 1fr !important;
+  }
+  /* Tablas: scroll horizontal */
+  .tabla-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* KPIs: 2 columnas en mobile */
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  /* Reducir padding en cards */
+  .card-mobile {
+    padding: 10px !important;
+  }
+  /* Ocultar columnas no esenciales en tablas mobile */
+  .hide-mobile {
+    display: none !important;
+  }
+}
