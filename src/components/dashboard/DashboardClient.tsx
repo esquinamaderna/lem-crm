@@ -138,6 +138,15 @@ export function DashboardClient() {
   const resultadoNeto = margenBruto - totalCostosReales
   const enNegros = resultadoNeto >= 0
 
+  // ── Realidad de caja: incluye reposición de materia prima ──
+  // La reposición = lo que hay que comprar para el próximo mes
+  // = mismo FC% × ventas actuales (o proyección si no hay ventas)
+  const baseReposicion = ventasTotalMes > 0 ? ventasTotalMes : puntoEq
+  const costoReposicion = baseReposicion * FC_PROM
+  const resultadoCaja = resultadoNeto - costoReposicion
+  const enNegrosOperativo = resultadoNeto >= 0
+  const enNegrosCaja = resultadoCaja >= 0
+
   // Punto de equilibrio del mes
   const cm = 1 - FC_PROM - (pctMP / 100) * MP_TASA
   const puntoEq = cm > 0 ? totalCostosCargados / cm : 0
@@ -237,9 +246,19 @@ export function DashboardClient() {
         <div class="fila negativo"><span>− Costos fijos</span><span>−${fmt(totalFijo)}</span></div>
         ${costoMPReal > 0 ? `<div class="fila negativo"><span>− Comisión MercadoPago (${pctMPReal ?? pctMP}%)</span><span>−${fmt(costoMPReal)}</span></div>` : ''}
         ${(totalVariable + totalOperativo) > 0 ? `<div class="fila negativo"><span>− Gastos variables y operativos</span><span>−${fmt(totalVariable + totalOperativo)}</span></div>` : ''}
-        <div class="resultado ${enNegros ? 'positivo' : 'negativo-box'}">
-          <span>GANANCIA REAL DEL MES</span>
-          <span>${enNegros ? '+' : ''}${fmt(resultadoNeto)}</span>
+        <div class="resultado ${enNegrosOperativo ? 'positivo' : 'negativo-box'}">
+          <span>MARGEN OPERATIVO</span>
+          <span>${enNegrosOperativo ? '+' : ''}${fmt(resultadoNeto)}</span>
+        </div>
+        <div style="margin-top:10px;padding:10px 14px;background:#f0f4ff;border-radius:6px;border:1px solid #b0c4e8;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;">
+            <span style="color:#666">− Reposición materia prima (FC ${(FC_PROM*100).toFixed(0)}%)</span>
+            <span style="color:#aa2020">−${fmt(costoReposicion)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:bold;border-top:1px solid #b0c4e8;padding-top:6px;margin-top:4px;">
+            <span>DINERO DISPONIBLE EN CAJA</span>
+            <span style="color:${enNegrosCaja ? '#1a7a40' : '#aa2020'}">${enNegrosCaja ? '+' : ''}${fmt(resultadoCaja)}</span>
+          </div>
         </div>
       </div>
 
@@ -402,25 +421,57 @@ export function DashboardClient() {
               </div>
             )}
 
-            {/* RESULTADO NETO — el número más importante */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 20px', borderRadius: 10, marginTop: 8, background: enNegros ? 'rgba(26,122,64,.08)' : 'rgba(170,32,32,.06)', border: `2px solid ${enNegros ? 'rgba(26,122,64,.3)' : 'rgba(170,32,32,.3)'}` }}>
-              <div>
-                <div style={{ fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', color: enNegros ? '#1a7a40' : '#aa2020', marginBottom: 6 }}>= GANANCIA REAL DEL MES</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                  {enNegros
-                    ? `✓ El negocio está generando beneficio real este mes`
-                    : `✗ El negocio aún no cubre todos sus costos este mes`}
+            {/* DOS RESULTADOS — margen operativo y realidad de caja */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
+
+              {/* Columna 1: Ganancia operativa (sin reposición) */}
+              <div style={{ padding: '16px 18px', borderRadius: 10, background: enNegrosOperativo ? 'rgba(26,122,64,.08)' : 'rgba(170,32,32,.06)', border: `2px solid ${enNegrosOperativo ? 'rgba(26,122,64,.3)' : 'rgba(170,32,32,.3)'}` }}>
+                <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Margen operativo</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>
+                  Ganancia después de cubrir costos fijos y variables. <strong>No incluye reposición de materia prima.</strong> Útil para evaluar si el precio de venta es correcto.
                 </div>
-                {ventasTotalMes === 0 && <div style={{ fontSize: 12, color: 'var(--dim)', marginTop: 4 }}>Sin ventas registradas aún — este es el modelo proyectado</div>}
+                <div style={{ fontSize: 36, fontWeight: 'bold', color: enNegrosOperativo ? '#1a7a40' : '#aa2020', letterSpacing: -1 }}>
+                  {enNegrosOperativo ? '+' : ''}{fmt(resultadoNeto)}
+                </div>
+                <div style={{ fontSize: 11, color: enNegrosOperativo ? '#1a7a40' : '#aa2020', marginTop: 4 }}>
+                  {enNegrosOperativo ? '✓ El modelo de precios funciona' : '✗ Los precios no cubren los costos'}
+                </div>
               </div>
-              <div style={{ fontSize: 48, fontWeight: 'bold', color: enNegros ? '#1a7a40' : '#aa2020', letterSpacing: -1 }}>
-                {enNegros ? '+' : ''}{fmt(resultadoNeto)}
+
+              {/* Columna 2: Realidad de caja (con reposición) */}
+              <div style={{ padding: '16px 18px', borderRadius: 10, background: enNegrosCaja ? 'rgba(26,122,64,.08)' : 'rgba(170,32,32,.06)', border: `2px solid ${enNegrosCaja ? 'rgba(26,122,64,.3)' : 'rgba(170,32,32,.3)'}` }}>
+                <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Realidad de caja</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>
+                  Ganancia real después de reservar <strong>{fmt(costoReposicion)}</strong> para reponer la materia prima del próximo mes (FC {(FC_PROM*100).toFixed(0)}% × ventas).
+                </div>
+                <div style={{ fontSize: 36, fontWeight: 'bold', color: enNegrosCaja ? '#1a7a40' : '#aa2020', letterSpacing: -1 }}>
+                  {enNegrosCaja ? '+' : ''}{fmt(resultadoCaja)}
+                </div>
+                <div style={{ fontSize: 11, color: enNegrosCaja ? '#1a7a40' : '#aa2020', marginTop: 4 }}>
+                  {enNegrosCaja ? '✓ El negocio genera caja libre' : '✗ No alcanza para reponer stock'}
+                </div>
+              </div>
+            </div>
+
+            {/* Desglose reposición */}
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(30,100,180,.06)', border: '1px solid rgba(30,100,180,.2)', borderRadius: 8, fontSize: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ color: 'var(--muted)' }}>Margen operativo</span>
+                <span style={{ color: enNegrosOperativo ? '#1a7a40' : '#aa2020', fontWeight: 'bold' }}>{fmt(resultadoNeto)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: '#aa2020' }}>
+                <span>− Reposición materia prima ({(FC_PROM*100).toFixed(0)}% × {fmt(ventasTotalMes > 0 ? ventasTotalMes : puntoEq)})</span>
+                <span>−{fmt(costoReposicion)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 6, fontWeight: 'bold' }}>
+                <span>= Dinero disponible en caja</span>
+                <span style={{ color: enNegrosCaja ? '#1a7a40' : '#aa2020', fontSize: 15 }}>{fmt(resultadoCaja)}</span>
               </div>
             </div>
 
             {/* Nota educativa */}
-            <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(154,122,26,.06)', border: '1px solid rgba(154,122,26,.2)', borderRadius: 8, fontSize: 12, color: 'var(--muted)' }}>
-              💡 <strong style={{ color: 'var(--text)' }}>FC 45% no significa ganar el 55%.</strong> Significa que el 45% del precio de venta es costo de producción (materia prima). Del 55% restante (margen bruto) todavía hay que pagar sueldos, alquiler, servicios, comisiones y todos los gastos operativos del negocio.
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(154,122,26,.06)', border: '1px solid rgba(154,122,26,.2)', borderRadius: 8, fontSize: 12, color: 'var(--muted)' }}>
+              💡 <strong style={{ color: 'var(--text)' }}>FC {(FC_PROM*100).toFixed(0)}% no significa ganar el {(100-FC_PROM*100).toFixed(0)}%.</strong> Del margen bruto hay que pagar costos fijos, comisiones y reponer la materia prima para el próximo ciclo. El dinero disponible en caja es lo que realmente queda libre.
             </div>
           </div>
 
