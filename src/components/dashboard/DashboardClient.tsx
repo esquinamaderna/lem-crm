@@ -138,19 +138,18 @@ export function DashboardClient() {
   const resultadoNeto = margenBruto - totalCostosReales
   const enNegros = resultadoNeto >= 0
 
-  // ── Realidad de caja: incluye reposición de materia prima ──
-  // La reposición = lo que hay que comprar para el próximo mes
-  // = mismo FC% × ventas actuales (o proyección si no hay ventas)
-  const baseReposicion = ventasTotalMes > 0 ? ventasTotalMes : puntoEq
-  const costoReposicion = baseReposicion * FC_PROM
-  const resultadoCaja = resultadoNeto - costoReposicion
   const enNegrosOperativo = resultadoNeto >= 0
-  const enNegrosCaja = resultadoCaja >= 0
 
   // Punto de equilibrio del mes
   const cm = 1 - FC_PROM - (pctMP / 100) * MP_TASA
   const puntoEq = cm > 0 ? totalCostosCargados / cm : 0
   const faltaParaEq = Math.max(0, puntoEq - ventasTotalMes)
+
+  // ── Realidad de caja: incluye reposición de materia prima ──
+  const baseReposicion = ventasTotalMes > 0 ? ventasTotalMes : puntoEq
+  const costoReposicion = baseReposicion * FC_PROM
+  const resultadoCaja = resultadoNeto - costoReposicion
+  const enNegrosCaja = resultadoCaja >= 0
   const pctAvance = puntoEq > 0 ? Math.min(100, ventasTotalMes / puntoEq * 100) : 0
 
   const diasMes = new Date(parseInt(periodo.split('-')[0]), parseInt(periodo.split('-')[1]), 0).getDate()
