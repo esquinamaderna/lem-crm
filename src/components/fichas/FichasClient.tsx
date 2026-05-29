@@ -229,7 +229,7 @@ const b = (v?: 'gold' | 'blue' | 'red'): React.CSSProperties => ({
   cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif',
 })
 
-type TabType = 'ficha' | 'precios'
+type TabType = 'ficha' | 'precios' | 'historial'
 
 interface ImpactoProducto {
   nombre: string
@@ -268,6 +268,9 @@ export function FichasClient() {
   const [showImpacto, setShowImpacto] = useState(false)
   const [applyingPrecios, setApplyingPrecios] = useState(false)
   const [searchIng, setSearchIng] = useState('')
+  const [historial, setHistorial] = useState<{id:number; nombre:string; precio:number; fecha:string; notas?:string}[]>([])
+  const [histFiltro, setHistFiltro] = useState('')
+  const [histCargado, setHistCargado] = useState(false)
 
   const router = useRouter()
 
@@ -339,6 +342,18 @@ export function FichasClient() {
       const nuevosPreciosActuales = { ...preciosActuales, ...preciosEditados }
       setPreciosActuales(nuevosPreciosActuales)
 
+      // Registrar historial de precios de ingredientes modificados
+      const fechaHoy = new Date().toISOString().split('T')[0]
+      const registrosHistorial = Object.entries(preciosEditados).map(([nombre, precio]) => ({
+        nombre,
+        precio,
+        fecha: fechaHoy,
+        notas: `Actualizado desde Fichas. Precio anterior: $${Math.round(preciosActuales[nombre] || 0).toLocaleString('es-AR')}`
+      }))
+      if (registrosHistorial.length > 0) {
+        await supabase.from('ingredientes_precios').insert(registrosHistorial)
+      }
+
       // Actualizar cada producto afectado en Supabase
       for (const item of impacto) {
         await supabase.from('productos').update({
@@ -393,6 +408,14 @@ export function FichasClient() {
     setSavingOrden(false)
   }
 
+  async function cargarHistorial() {
+    if (histCargado) return
+    const { data } = await supabase.from('ingredientes_precios')
+      .select('*').order('fecha', { ascending: false }).order('nombre').limit(500)
+    setHistorial(data || [])
+    setHistCargado(true)
+  }
+
   const ingredientesLista = Object.entries(preciosActuales)
     .filter(([nombre]) => !searchIng || nombre.toLowerCase().includes(searchIng.toLowerCase()))
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -403,7 +426,7 @@ export function FichasClient() {
     <div>
       {/* ── Tabs ── */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-        {[['ficha', '📋 Fichas técnicas'], ['precios', '💰 Actualizar precios de ingredientes']].map(([t, label]) => (
+        {[['ficha', '📋 Fichas técnicas'], ['precios', '💰 Actualizar precios'], ['historial', '📈 Historial de precios']].map(([t, label]) => (
           <button key={t} onClick={() => setTab(t as TabType)} style={{
             padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif',
             border: tab === t ? '1px solid var(--gold)' : '1px solid var(--border)',
@@ -729,6 +752,132 @@ export function FichasClient() {
           )}
         </div>
       )}
+      {/* ══════════════════════════════ TAB: HISTORIAL ══════════════════════════════ */}
+      {tab === 'historial' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 4 }}>Historial de precios de ingredientes</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                Cada actualización queda registrada automáticamente con fecha y precio anterior.
+              </div>
+            </div>
+            <input value={histFiltro} onChange={e => setHistFiltro(e.target.value)}
+              placeholder="Filtrar por ingrediente..." style={{ maxWidth: 260 }} />
+          </div>
+
+          {/* Tabla de historial */}
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, boxShadow: 'var(--shadow)', overflowX: 'auto' }}>
+            {historial.length === 0
+              ? <div style={{ textAlign: 'center', color: 'var(--dim)', padding: 40, fontSize: 13 }}>
+                  No hay registros aún. Los precios se registran automáticamente cuando aplicás cambios en la pestaña "Actualizar precios".
+                </div>
+              : (() => {
+                  const filtrado = histFiltro
+                    ? historial.filter(h => h.nombre.toLowerCase().includes(histFiltro.toLowerCase()))
+                    : historial
+
+                  // Agrupar por ingrediente para mostrar tendencia
+                  const porIngrediente: Record<string, typeof historial> = {}
+                  filtrado.forEach(h => {
+                    if (!porIngrediente[h.nombre]) porIngrediente[h.nombre] = []
+                    porIngrediente[h.nombre].push(h)
+                  })
+
+                  return (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 560 }}>
+                      <thead>
+                        <tr>{['Ingrediente','Fecha','Precio','Variación','Notas'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '7px 10px', fontSize: 10, color: 'var(--muted)', borderBottom: '1px solid var(--border)', letterSpacing: 1, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}</tr>
+                      </thead>
+                      <tbody>
+                        {filtrado.map((h, idx) => {
+                          // Calcular variación respecto al registro anterior del mismo ingrediente
+                          const anteriores = porIngrediente[h.nombre]
+                          const miIdx = anteriores.findIndex(x => x.id === h.id)
+                          const anterior = anteriores[miIdx + 1]
+                          const variacion = anterior ? ((h.precio - anterior.precio) / anterior.precio * 100) : null
+                          const sube = variacion !== null && variacion > 0
+
+                          return (
+                            <tr key={h.id} style={{ background: idx % 2 === 0 ? 'transparent' : 'var(--bg)' }}>
+                              <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontWeight: 'bold' }}>{h.nombre}</td>
+                              <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                                {new Date(h.fecha).toLocaleDateString('es-AR')}
+                              </td>
+                              <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', color: 'var(--gold)', fontWeight: 'bold' }}>
+                                ${Math.round(h.precio).toLocaleString('es-AR')}
+                              </td>
+                              <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontSize: 12 }}>
+                                {variacion !== null
+                                  ? <span style={{ color: sube ? '#aa2020' : '#1a7a40', fontWeight: 'bold' }}>
+                                      {sube ? '↑' : '↓'} {Math.abs(variacion).toFixed(1)}%
+                                    </span>
+                                  : <span style={{ color: 'var(--dim)' }}>—</span>}
+                              </td>
+                              <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', fontSize: 11, color: 'var(--muted)', maxWidth: 200 }}>
+                                {h.notas || '—'}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  )
+                })()
+            }
+          </div>
+
+          {/* Resumen por ingrediente */}
+          {historial.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>
+                Variación acumulada por ingrediente
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px,1fr))', gap: 10 }}>
+                {(() => {
+                  const porIngr: Record<string, number[]> = {}
+                  historial.forEach(h => {
+                    if (!porIngr[h.nombre]) porIngr[h.nombre] = []
+                    porIngr[h.nombre].push(h.precio)
+                  })
+                  return Object.entries(porIngr)
+                    .filter(([, precios]) => precios.length >= 2)
+                    .map(([nombre, precios]) => {
+                      const ultimo = precios[0]
+                      const primero = precios[precios.length - 1]
+                      const varTotal = ((ultimo - primero) / primero * 100)
+                      const sube = varTotal > 0
+                      return (
+                        <div key={nombre} style={{ background: 'var(--card)', border: `1px solid ${sube ? 'rgba(170,32,32,.2)' : 'rgba(26,122,64,.2)'}`, borderRadius: 8, padding: '10px 14px', boxShadow: 'var(--shadow)' }}>
+                          <div style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 6 }}>{nombre}</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                            <div>
+                              <div style={{ fontSize: 10, color: 'var(--muted)' }}>Primer registro</div>
+                              <div style={{ color: 'var(--muted)' }}>${Math.round(primero).toLocaleString('es-AR')}</div>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: 16, fontWeight: 'bold', color: sube ? '#aa2020' : '#1a7a40' }}>
+                                {sube ? '↑' : '↓'} {Math.abs(varTotal).toFixed(1)}%
+                              </div>
+                              <div style={{ fontSize: 10, color: 'var(--dim)' }}>{precios.length} registros</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: 10, color: 'var(--muted)' }}>Último</div>
+                              <div style={{ color: 'var(--gold)', fontWeight: 'bold' }}>${Math.round(ultimo).toLocaleString('es-AR')}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
+                })()}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   )
 }
