@@ -104,23 +104,38 @@ export function Topbar() {
 
       {/* Mobile drawer */}
       {menuOpen && (
-        <div style={{ position: 'fixed', top: 52, left: 0, right: 0, background: '#1a1814', borderBottom: '2px solid #9a7a1a', zIndex: 99, padding: 16 }}>
-          <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: '#6b6560', marginBottom: 8 }}>Transacciones</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
-            {NAV_TRANSACCIONES.map(({ href, label }) => {
-              const active = path === href
-              return <Link key={href} href={href} style={{ textAlign: 'center', padding: '10px 8px', borderRadius: 8, fontSize: 12, fontFamily: 'Georgia,serif', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: 1, border: active ? '1px solid #9a7a1a' : '1px solid #333', background: active ? 'rgba(201,162,39,.15)' : 'rgba(255,255,255,.04)', color: active ? '#c9a227' : '#9e9890' }}>{label}</Link>
-            })}
+        <>
+          {/* Overlay para cerrar al tocar afuera */}
+          <div onClick={() => setMenuOpen(false)}
+            style={{ position: 'fixed', inset: 0, top: 52, zIndex: 98, background: 'rgba(0,0,0,.5)' }} />
+          <div style={{ position: 'fixed', top: 52, left: 0, right: 0, background: '#1a1814', borderBottom: '2px solid #9a7a1a', zIndex: 99, padding: '14px 16px', maxHeight: 'calc(100vh - 52px)', overflowY: 'auto' }}>
+            <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: '#6b6560', marginBottom: 8 }}>Transacciones</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 14 }}>
+              {NAV_TRANSACCIONES.map(({ href, label }) => {
+                const active = path === href
+                return (
+                  <Link key={href} href={href} onClick={() => setMenuOpen(false)}
+                    style={{ textAlign: 'center', padding: '10px 6px', borderRadius: 8, fontSize: 11, fontFamily: 'Georgia,serif', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: 0.5, border: active ? '1px solid #9a7a1a' : '1px solid #333', background: active ? 'rgba(201,162,39,.15)' : 'rgba(255,255,255,.04)', color: active ? '#c9a227' : '#9e9890' }}>
+                    {label}
+                  </Link>
+                )
+              })}
+            </div>
+            <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: '#6b6560', marginBottom: 8 }}>Operaciones</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 12 }}>
+              {NAV_OPERACIONES.map(({ href, label }) => {
+                const active = path === href
+                return (
+                  <Link key={href} href={href} onClick={() => setMenuOpen(false)}
+                    style={{ textAlign: 'center', padding: '10px 6px', borderRadius: 8, fontSize: 11, fontFamily: 'Georgia,serif', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: 0.5, border: active ? '1px solid #9a7a1a' : '1px solid #333', background: active ? 'rgba(201,162,39,.15)' : 'rgba(255,255,255,.04)', color: active ? '#c9a227' : '#9e9890' }}>
+                    {label}
+                  </Link>
+                )
+              })}
+            </div>
+            <div style={{ fontSize: 11, color: '#555', textAlign: 'center', paddingTop: 8, borderTop: '1px solid #2a2520' }}>{clock}</div>
           </div>
-          <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: '#6b6560', marginBottom: 8 }}>Operaciones</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-            {NAV_OPERACIONES.map(({ href, label }) => {
-              const active = path === href
-              return <Link key={href} href={href} style={{ textAlign: 'center', padding: '10px 8px', borderRadius: 8, fontSize: 12, fontFamily: 'Georgia,serif', textDecoration: 'none', textTransform: 'uppercase', letterSpacing: 1, border: active ? '1px solid #9a7a1a' : '1px solid #333', background: active ? 'rgba(201,162,39,.15)' : 'rgba(255,255,255,.04)', color: active ? '#c9a227' : '#9e9890' }}>{label}</Link>
-            })}
-          </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: '#555', textAlign: 'center' }}>{clock}</div>
-        </div>
+        </>
       )}
 
       <style>{`
