@@ -127,8 +127,8 @@ export function ProduccionClient() {
         </div>
       </div>
 
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 640 }}>
           <thead><tr>{['Lote', 'Producto', 'Cantidad', 'Fecha Prod.', 'Vence', 'Estado', 'Etiquetas', ''].map(h => <th key={h} style={{ fontSize: 10, letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'left', padding: '7px 10px', borderBottom: '1px solid var(--border)' }}>{h}</th>)}</tr></thead>
           <tbody>
             {ordenes.length === 0
