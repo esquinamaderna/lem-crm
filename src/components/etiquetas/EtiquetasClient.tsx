@@ -27,7 +27,10 @@ function etqControlHTML(p: Producto, fpFmt: string, venceFmt: string, peso: stri
 // Etiqueta de CLIENTE (para packaging)
 function etqClienteHTML(p: Producto, fpFmt: string, venceFmt: string, peso: string, lote: string, inst: string) {
   return `<div style="border:2px solid #000;border-radius:4px;padding:10px 12px;max-width:270px;background:#fff;color:#000;font-family:Georgia,serif">
-    <div style="font-size:15px;font-weight:bold;letter-spacing:1px;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:7px">LA ESQUINA DE MADERNA</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:7px">
+      <div style="font-size:15px;font-weight:bold;letter-spacing:1px">LA ESQUINA DE MADERNA</div>
+      ${(p as any).cod_interno ? `<div style="font-size:9px;font-family:monospace;color:#555;margin-top:2px">${(p as any).cod_interno}</div>` : ''}
+    </div>
     <div style="font-size:17px;font-weight:bold;line-height:1.2;margin-bottom:5px">${p.nombre}</div>
     <div style="font-size:13px;color:#333;margin-bottom:6px">${peso}</div>
     <div style="font-size:11px;border-top:1px solid #ccc;padding-top:5px">
@@ -37,7 +40,7 @@ function etqClienteHTML(p: Producto, fpFmt: string, venceFmt: string, peso: stri
       <div style="font-size:14px;font-weight:bold;color:#b00;margin:5px 0">CONSUMIR PREFERENTEMENTE ANTES DEL:<br>${venceFmt}</div>
       ${inst ? `<div style="font-size:10px;color:#444;border-top:1px dashed #ccc;padding-top:4px;margin-top:4px">${inst}</div>` : ''}
     </div>
-    <div style="font-size:8px;color:#999;margin-top:5px;text-align:right;border-top:1px solid #eee;padding-top:3px">Lote: ${lote} · chefprivado.ar</div>
+    <div style="font-size:8px;color:#999;margin-top:5px;border-top:1px solid #eee;padding-top:3px;display:flex;justify-content:space-between"><span>Lote: ${lote}</span>${(p as any).codigo_ean ? `<span style="font-family:monospace">${(p as any).codigo_ean}</span>` : "<span>chefprivado.ar</span>"}</div>
   </div>`
 }
 

@@ -105,7 +105,7 @@ export function ProductosClient() {
       {/* Tabla desktop */}
       <div className="resp-table" style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,padding:14,overflowX:'auto'}}>
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,minWidth:600}}>
-          <thead><tr>{['Producto','Cat.','Tipo','PV','Costo','FC%','Stock','Unidad',''].map(h=><th key={h} style={{fontSize:10,letterSpacing:'1.2px',textTransform:'uppercase',color:'var(--muted)',textAlign:'left',padding:'7px 10px',borderBottom:'1px solid var(--border)'}}>{h}</th>)}</tr></thead>
+          <thead><tr>{['Producto','Cat.','Tipo','Cód. interno','PV','Costo','FC%','Stock','Unidad',''].map(h=><th key={h} style={{fontSize:10,letterSpacing:'1.2px',textTransform:'uppercase',color:'var(--muted)',textAlign:'left',padding:'7px 10px',borderBottom:'1px solid var(--border)'}}>{h}</th>)}</tr></thead>
           <tbody>
             {filtered.map(p=>{
               const fc=p.costo/p.precio_venta; const stk=p.stock_kg||0
@@ -117,6 +117,7 @@ export function ProductosClient() {
                 {(()=>{ const tipo = (p as any).tipo_producto || (['JUMBALAY','CORTES','EMBUTIDOS','PAPAS'].includes(p.categoria) ? 'reventa' : 'elaborado'); const esRev = tipo==='reventa'; return (
                   <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{fontSize:10,padding:'2px 6px',borderRadius:4,background:esRev?'rgba(30,100,180,.08)':'rgba(26,122,64,.08)',border:esRev?'1px solid rgba(30,100,180,.25)':'1px solid rgba(26,122,64,.25)',color:esRev?'#1050a0':'#1a7a40'}}>{tipo}</span></td>
                 )})()}
+                <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{fontSize:10,color:'var(--muted)',fontFamily:'monospace'}}>{(p as any).cod_interno||'—'}</span></td>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)',color:'var(--gold)'}}>{fmt(p.precio_venta)}</td>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}>{fmt(p.costo)}</td>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:4,fontSize:10,color:fcColor,border:`1px solid ${fcColor}44`,background:`${fcColor}18`}}>{(fc*100).toFixed(0)}%</span></td>
@@ -139,8 +140,26 @@ export function ProductosClient() {
               <div><label style={lbl}>Categoría</label><select value={npCat} onChange={e=>setNpCat(e.target.value)}>{CATS.map(c=><option key={c}>{c}</option>)}</select></div>
               <div><label style={lbl}>PV ($/kg)</label><input type="number" value={npPv} onChange={e=>setNpPv(e.target.value)} /></div>
               <div><label style={lbl}>Costo ($/kg)</label><input type="number" value={npCosto} onChange={e=>setNpCosto(e.target.value)} /></div>
+              <div><label style={lbl}>Código interno</label>
+                <input value={(editProd as any)?.cod_interno||''} onChange={e => setEditProd(prev => prev ? { ...prev, cod_interno: e.target.value } : prev)} placeholder="LEM-001" />
+              </div>
+              <div><label style={lbl}>EAN-13</label>
+                <input value={(editProd as any)?.codigo_ean||''} onChange={e => setEditProd(prev => prev ? { ...prev, codigo_ean: e.target.value } : prev)} placeholder="7790001000019" maxLength={13} style={{fontFamily:'monospace'}} />
+              </div>
+              <div><label style={lbl}>RNPA (elaborados)</label>
+                <input value={(editProd as any)?.rnpa||''} onChange={e => setEditProd(prev => prev ? { ...prev, rnpa: e.target.value } : prev)} placeholder="Registro ANMAT" />
+              </div>
               <div><label style={lbl}>Unidad de venta</label><select value={npUnidad} onChange={e=>setNpUnidad(e.target.value)}><option value="kg">kg (por peso)</option><option value="u">u (por unidad)</option><option value="L">L (por litro)</option></select></div><div><label style={lbl}>Stock inicial</label><input type="number" value={npStock} onChange={e=>setNpStock(e.target.value)} /></div>
               <div><label style={lbl}>Vida útil (días)</label><input type="number" value={npVida} onChange={e=>setNpVida(e.target.value)} /></div>
+              <div><label style={lbl}>Código interno</label>
+                <input value={(editProd as any)?.cod_interno||''} onChange={e => setEditProd(prev => prev ? { ...prev, cod_interno: e.target.value } : prev)} placeholder="LEM-001" />
+              </div>
+              <div><label style={lbl}>EAN-13</label>
+                <input value={(editProd as any)?.codigo_ean||''} onChange={e => setEditProd(prev => prev ? { ...prev, codigo_ean: e.target.value } : prev)} placeholder="7790001000019" maxLength={13} style={{fontFamily:'monospace'}} />
+              </div>
+              <div><label style={lbl}>RNPA (elaborados)</label>
+                <input value={(editProd as any)?.rnpa||''} onChange={e => setEditProd(prev => prev ? { ...prev, rnpa: e.target.value } : prev)} placeholder="Registro ANMAT" />
+              </div>
               <div><label style={lbl}>Unidad de venta</label>
                 <select value={npUnidad||'kg'} onChange={e=>setNpUnidad(e.target.value)}>
                   <option value="kg">kg (por peso)</option>
