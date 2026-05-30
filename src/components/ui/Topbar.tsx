@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 
 const NAV_TRANSACCIONES = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/clientes',   label: 'Clientes' },
   { href: '/pos',     label: 'Venta' },
   { href: '/pedidos', label: 'Pedidos' },
   { href: '/ventas',  label: 'Historial' },

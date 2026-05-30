@@ -41,9 +41,32 @@ export function PedidosClient() {
   const [combos, setCombos] = useState<Combo[]>([])
   const [stockMap, setStockMap] = useState<Record<string,number>>({})
   const [fCli, setFCli] = useState(''); const [fTel, setFTel] = useState('')
+  const [fDir, setFDir] = useState('')
+  const [clienteId, setClienteId] = useState<number|null>(null)
+  const [clientesSug, setClientesSug] = useState<{id:number;nombre:string;telefono?:string;direccion?:string}[]>([])
+  const [showSug, setShowSug] = useState(false)
   const [fCanal, setFCanal] = useState('Mostrador'); const [fPago, setFPago] = useState('Efectivo')
   const [fNotas, setFNotas] = useState(''); const [fItems, setFItems] = useState<CartItem[]>([])
   const [fProdSel, setFProdSel] = useState(''); const [fKg, setFKg] = useState<number>(0.5)
+
+  async function buscarClientes(texto: string) {
+    setFCli(texto)
+    setClienteId(null)
+    if (texto.length < 2) { setClientesSug([]); setShowSug(false); return }
+    const { data } = await supabase.from('clientes').select('id, nombre, telefono, direccion')
+      .ilike('nombre', '%' + texto + '%').eq('activo', true).limit(5)
+    setClientesSug(data || [])
+    setShowSug(true)
+  }
+
+  function seleccionarCliente(c: {id:number;nombre:string;telefono?:string;direccion?:string}) {
+    setFCli(c.nombre)
+    setFTel(c.telefono || '')
+    setFDir(c.direccion || '')
+    setClienteId(c.id)
+    setClientesSug([])
+    setShowSug(false)
+  }
   const [fDescPct, setFDescPct] = useState(''); const [fDescMonto, setFDescMonto] = useState('')
 
   useEffect(() => { load() }, [filtroEstado])
@@ -84,6 +107,15 @@ export function PedidosClient() {
     })
   }
 
+  async function abrirNuevoCliente() {
+    if (!fCli.trim()) return
+    const { data } = await supabase.from('clientes').insert({ nombre: fCli.trim(), telefono: fTel, activo: true }).select().single()
+    if (data) {
+      setClienteId(data.id)
+      setShowSug(false)
+    }
+  }
+
   function addComboToFItems(c: Combo) {
     setFItems(prev => {
       const ex = prev.find(i => i.id === -c.id)
@@ -112,12 +144,12 @@ export function PedidosClient() {
     try {
       const { count } = await supabase.from('pedidos').select('*', { count: 'exact', head: true })
       const num = padNum((count ?? 0) + 1, 'P', 4)
-      const pedido = { numero: num, fecha: today(), hora: nowTime(), cliente: fCli.trim(), telefono: fTel, canal: fCanal, estado: 'recibido' as const, medio_pago: fPago, total: totalFItems, cobrado: false, notas: fNotas }
+      const pedido = { numero: num, fecha: today(), hora: nowTime(), cliente: fCli.trim(), telefono: fTel, canal: fCanal, estado: 'recibido' as const, medio_pago: fPago, total: totalFItems, cobrado: false, notas: fNotas, cliente_id: clienteId }
       const { data: pd, error } = await supabase.from('pedidos').insert(pedido).select().single()
       if (error) { alert('Error: ' + error.message); return }
       await supabase.from('pedido_items').insert(fItems.map(i => ({ pedido_id: pd.id, producto_id: i.id, producto_nombre: i.nombre, cantidad_kg: i.qty, precio_unit: i.pv, descuento_pct: i.descPct || 0, descuento_monto: calcDescItem(i), precio_final: calcNetItem(i) })))
       await supabase.from('comandas').insert({ numero: 'CP' + num, pedido_id: pd.id, estado: 'pendiente', notas: '' })
-      setModal(null); setFCli(''); setFTel(''); setFItems([]); setFNotas(''); setFDescPct(''); setFDescMonto('')
+      setModal(null); setFCli(''); setFTel(''); setFDir(''); setFItems([]); setFNotas(''); setFDescPct(''); setFDescMonto(''); setClienteId(null)
       load()
     } catch (e) { console.error(e); alert('Error inesperado') }
     setSaving(false)
@@ -308,9 +340,29 @@ export function PedidosClient() {
             </div>
 
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:10, marginBottom:14 }}>
-              <div>
-                <label style={{ fontSize:11, color:'var(--muted)', display:'block', marginBottom:3 }}>Cliente *</label>
-                <input value={fCli} onChange={e => setFCli(e.target.value)} placeholder="Nombre" />
+              <div style={{ position:'relative' }}>
+                <label style={{ fontSize:11, color:'var(--muted)', display:'block', marginBottom:3 }}>
+                  Cliente * {clienteId && <span style={{ color:'#1a7a40', fontSize:10 }}>✓ registrado</span>}
+                </label>
+                <input value={fCli} onChange={e => buscarClientes(e.target.value)}
+                  onBlur={() => setTimeout(() => setShowSug(false), 150)}
+                  placeholder="Nombre del cliente" autoComplete="off" />
+                {showSug && clientesSug.length > 0 && (
+                  <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'var(--card)', border:'1px solid var(--gold-d)', borderRadius:6, zIndex:300, boxShadow:'0 4px 16px rgba(0,0,0,.15)', maxHeight:200, overflowY:'auto' }}>
+                    {clientesSug.map(c => (
+                      <div key={c.id} onMouseDown={() => seleccionarCliente(c)}
+                        style={{ padding:'9px 12px', cursor:'pointer', borderBottom:'1px solid var(--borderl)', fontSize:13 }}>
+                        <div style={{ fontWeight:'bold' }}>{c.nombre}</div>
+                        {c.telefono && <div style={{ fontSize:11, color:'var(--muted)' }}>📞 {c.telefono}</div>}
+                        {c.direccion && <div style={{ fontSize:11, color:'var(--muted)' }}>📍 {c.direccion}</div>}
+                      </div>
+                    ))}
+                    <div onMouseDown={abrirNuevoCliente}
+                      style={{ padding:'8px 12px', cursor:'pointer', fontSize:12, color:'var(--gold)', textAlign:'center' }}>
+                      + Crear "{fCli}" como cliente nuevo
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label style={{ fontSize:11, color:'var(--muted)', display:'block', marginBottom:3 }}>Teléfono</label>
