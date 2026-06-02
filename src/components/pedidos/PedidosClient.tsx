@@ -148,7 +148,27 @@ export function PedidosClient() {
       const { data: pd, error } = await supabase.from('pedidos').insert(pedido).select().single()
       if (error) { alert('Error: ' + error.message); return }
       await supabase.from('pedido_items').insert(fItems.map(i => ({ pedido_id: pd.id, producto_id: i.id, producto_nombre: i.nombre, cantidad_kg: i.qty, precio_unit: i.pv, descuento_pct: i.descPct || 0, descuento_monto: calcDescItem(i), precio_final: calcNetItem(i) })))
-      await supabase.from('comandas').insert({ numero: 'CP' + num, pedido_id: pd.id, estado: 'pendiente', notas: '' })
+      await supabase.from('comandas').insert({ numero: 'CP' + num, pedido_id: pd.id, estado: 'pendiente', notas: '', contenido: {} }).catch(() => {})
+
+      // Reservar stock al crear el pedido
+      for (const item of fItems) {
+        if ((item as any).esCombo) {
+          for (const comp of ((item as any).comboItems || [])) {
+            const prod = productos.find((p: any) => p.id === comp.producto_id)
+            if (prod) {
+              const newStk = Math.max(0, parseFloat(((prod.stock_kg || 0) - comp.cantidad_kg * item.qty).toFixed(3)))
+              await supabase.from('productos').update({ stock_kg: newStk }).eq('id', comp.producto_id)
+            }
+          }
+        } else {
+          const prod = productos.find((p: any) => p.id === item.id)
+          if (prod) {
+            const newStk = Math.max(0, parseFloat(((prod.stock_kg || 0) - item.qty).toFixed(3)))
+            await supabase.from('productos').update({ stock_kg: newStk }).eq('id', item.id)
+          }
+        }
+      }
+
       setModal(null); setFCli(''); setFTel(''); setFDir(''); setFItems([]); setFNotas(''); setFDescPct(''); setFDescMonto(''); setClienteId(null)
       load()
     } catch (e) { console.error(e); alert('Error inesperado') }
@@ -166,12 +186,28 @@ export function PedidosClient() {
   }
 
   async function cancelar(id: number) {
-    if (!confirm('¿Cancelar este pedido?')) return
+    if (!confirm('¿Cancelar este pedido? El stock reservado se devolverá automáticamente.')) return
+    // Obtener items del pedido para devolver stock
+    const { data: items } = await supabase.from('pedido_items')
+      .select('producto_id, producto_nombre, cantidad_kg')
+      .eq('pedido_id', id)
+    // Devolver stock solo si el pedido no estaba cobrado (stock ya confirmado)
+    const pedidoActual = pedidos.find(p => p.id === id)
+    if (items && pedidoActual && !pedidoActual.cobrado) {
+      for (const item of items) {
+        const { data: prod } = await supabase.from('productos').select('stock_kg').eq('id', item.producto_id).single()
+        if (prod) {
+          const newStk = parseFloat(((prod.stock_kg || 0) + item.cantidad_kg).toFixed(3))
+          await supabase.from('productos').update({ stock_kg: newStk }).eq('id', item.producto_id)
+        }
+      }
+    }
     await supabase.from('pedidos').update({ estado: 'cancelado' }).eq('id', id)
     setModal(null); load()
   }
 
   async function marcarCobrado(id: number) {
+    // Stock ya fue reservado al crear el pedido — solo cambiar estado
     await supabase.from('pedidos').update({ cobrado: true, estado: 'cobrado' }).eq('id', id)
     load(); setDetalle(prev => prev ? { ...prev, cobrado: true, estado: 'cobrado' } : prev)
   }
