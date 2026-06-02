@@ -148,7 +148,7 @@ export function PedidosClient() {
       const { data: pd, error } = await supabase.from('pedidos').insert(pedido).select().single()
       if (error) { alert('Error: ' + error.message); return }
       await supabase.from('pedido_items').insert(fItems.map(i => ({ pedido_id: pd.id, producto_id: i.id, producto_nombre: i.nombre, cantidad_kg: i.qty, precio_unit: i.pv, descuento_pct: i.descPct || 0, descuento_monto: calcDescItem(i), precio_final: calcNetItem(i) })))
-      await supabase.from('comandas').insert({ numero: 'CP' + num, pedido_id: pd.id, estado: 'pendiente', notas: '', contenido: {} }).catch(() => {})
+      try { await supabase.from('comandas').insert({ numero: 'CP' + num, pedido_id: pd.id, estado: 'pendiente', notas: '', contenido: {} }) } catch(_) {}
 
       // Reservar stock al crear el pedido
       for (const item of fItems) {
