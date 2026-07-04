@@ -20,7 +20,12 @@ export function ProductosClient() {
   const [stkTipo, setStkTipo] = useState('set'); const [stkVal, setStkVal] = useState(''); const [stkMotivo, setStkMotivo] = useState('')
   const [npNombre, setNpNombre] = useState(''); const [npCat, setNpCat] = useState('VACUNO')
   const [npPv, setNpPv] = useState(''); const [npCosto, setNpCosto] = useState(''); const [npStock, setNpStock] = useState('0'); const [npVida, setNpVida] = useState('90')
-  const [npUnidad, setNpUnidad] = useState('kg'); const [npInst, setNpInst] = useState('')
+  const [npUnidad, setNpUnidad] = useState('kg')
+  const [modalAjuste, setModalAjuste] = useState(false)
+  const [ajustePct, setAjustePct] = useState('')
+  const [ajusteCats, setAjusteCats] = useState<string[]>([])
+  const [ajusteNombre, setAjusteNombre] = useState('')
+  const [ajusteApplying, setAjusteApplying] = useState(false); const [npInst, setNpInst] = useState('')
 
   useEffect(()=>{load()},[])
   async function load() {
@@ -29,6 +34,32 @@ export function ProductosClient() {
   }
 
   const filtered = prods.filter(p=>(!search||p.nombre.toLowerCase().includes(search.toLowerCase()))&&(!catF||p.categoria===catF))
+
+  async function aplicarAjuste() {
+    const pct = parseFloat(ajustePct)
+    if (!pct || isNaN(pct)) { alert('Ingresá un porcentaje válido'); return }
+    if (!ajusteCats.length && !ajusteNombre.trim()) { alert('Seleccioná al menos una categoría o ingresá un nombre'); return }
+    if (!confirm(`¿Aplicar ${pct > 0 ? '+' : ''}${pct}% a los productos seleccionados?`)) return
+    setAjusteApplying(true)
+    try {
+      // Filtrar productos a ajustar
+      let targets = prods.filter((p: any) => {
+        const porCat = ajusteCats.length === 0 || ajusteCats.includes(p.categoria)
+        const porNom = !ajusteNombre.trim() || p.nombre.toLowerCase().includes(ajusteNombre.toLowerCase())
+        return porCat && porNom
+      })
+      const factor = 1 + pct / 100
+      for (const p of targets) {
+        const nuevoCosto = Math.round(p.costo * factor)
+        const nuevoPV = Math.ceil((p.precio_venta * factor) / 500) * 500
+        await supabase.from('productos').update({ costo: nuevoCosto, precio_venta: nuevoPV }).eq('id', p.id)
+      }
+      alert(`✓ ${targets.length} productos actualizados con ${pct > 0 ? '+' : ''}${pct}%`)
+      setModalAjuste(false); setAjustePct(''); setAjusteCats([]); setAjusteNombre('')
+      load()
+    } catch (e) { alert('Error al aplicar ajuste') }
+    setAjusteApplying(false)
+  }
 
   async function guardarNuevo() {
     if(!npNombre.trim()) return
@@ -200,6 +231,93 @@ export function ProductosClient() {
           </div>
         </div>
       )}
+      {/* Modal ajuste masivo */}
+      {modalAjuste && (
+        <div style={{ display:'flex', position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, alignItems:'center', justifyContent:'center', padding:16 }}
+          onClick={e => { if (e.target === e.currentTarget) setModalAjuste(false) }}>
+          <div style={{ background:'var(--card)', border:'1px solid var(--gold-d)', borderRadius:12, padding:22, width:'100%', maxWidth:500, maxHeight:'90vh', overflowY:'auto' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+              <div style={{ fontSize:12, letterSpacing:2, textTransform:'uppercase', color:'var(--gold)' }}>Ajuste masivo de precios</div>
+              <button onClick={() => setModalAjuste(false)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:20 }}>×</button>
+            </div>
+
+            <div style={{ fontSize:12, color:'var(--muted)', marginBottom:16, padding:'10px 12px', background:'var(--bg)', borderRadius:6 }}>
+              Aplicá un aumento o descuento porcentual a un grupo de productos. El costo y el precio de venta se ajustan proporcionalmente, redondeando el PV a múltiplos de $500.
+            </div>
+
+            <div style={{ marginBottom:14 }}>
+              <label style={lbl}>% de ajuste (positivo = aumento, negativo = descuento)</label>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <input type="number" value={ajustePct} onChange={e => setAjustePct(e.target.value)}
+                  placeholder="ej: 12 para +12%, -8 para -8%" style={{ flex:1 }} />
+                <span style={{ fontSize:13, color:'var(--muted)', flexShrink:0 }}>%</span>
+              </div>
+              {ajustePct && !isNaN(parseFloat(ajustePct)) && (
+                <div style={{ fontSize:11, marginTop:4, color: parseFloat(ajustePct) > 0 ? '#aa2020' : '#1a7a40' }}>
+                  {parseFloat(ajustePct) > 0 ? `↑ Aumento de ${ajustePct}%` : `↓ Descuento de ${Math.abs(parseFloat(ajustePct))}%`}
+                  {' — ej: $1.000 → ${Math.ceil(1000 * (1 + parseFloat(ajustePct)/100) / 500) * 500}'}
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom:14 }}>
+              <label style={lbl}>Filtrar por categoría (ninguna = todas)</label>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                {CATS.filter(c => c !== 'Todos').map(c => (
+                  <button key={c} onClick={() => setAjusteCats(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                    style={{ padding:'4px 10px', borderRadius:6, fontSize:11, fontFamily:'Georgia,serif', cursor:'pointer',
+                      border: ajusteCats.includes(c) ? '1px solid var(--gold)' : '1px solid var(--border)',
+                      background: ajusteCats.includes(c) ? 'var(--gold-bg)' : 'var(--card)',
+                      color: ajusteCats.includes(c) ? 'var(--gold)' : 'var(--muted)' }}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={lbl}>Filtrar por nombre (opcional)</label>
+              <input value={ajusteNombre} onChange={e => setAjusteNombre(e.target.value)}
+                placeholder="ej: Mermelada, Aceituna, Milanesa..." />
+            </div>
+
+            {/* Preview de productos afectados */}
+            {(ajusteCats.length > 0 || ajusteNombre) && (
+              <div style={{ marginBottom:14, padding:'10px 12px', background:'var(--bg)', borderRadius:6, fontSize:12 }}>
+                <div style={{ color:'var(--muted)', marginBottom:4 }}>Productos que se van a ajustar:</div>
+                <div style={{ color:'var(--gold)', fontWeight:'bold' }}>
+                  {prods.filter((p: any) => {
+                    const porCat = ajusteCats.length === 0 || ajusteCats.includes(p.categoria)
+                    const porNom = !ajusteNombre.trim() || p.nombre.toLowerCase().includes(ajusteNombre.toLowerCase())
+                    return porCat && porNom
+                  }).length} productos
+                </div>
+                <div style={{ maxHeight:120, overflowY:'auto', marginTop:4 }}>
+                  {prods.filter((p: any) => {
+                    const porCat = ajusteCats.length === 0 || ajusteCats.includes(p.categoria)
+                    const porNom = !ajusteNombre.trim() || p.nombre.toLowerCase().includes(ajusteNombre.toLowerCase())
+                    return porCat && porNom
+                  }).slice(0,10).map((p: any) => (
+                    <div key={p.id} style={{ fontSize:11, color:'var(--muted)', padding:'2px 0' }}>
+                      · {p.nombre} — PV actual: {fmt(p.precio_venta)}
+                      {ajustePct && !isNaN(parseFloat(ajustePct)) && ` → ${fmt(Math.ceil(p.precio_venta * (1 + parseFloat(ajustePct)/100) / 500) * 500)}`}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setModalAjuste(false)} style={{ ...b(), flex:1 }}>Cancelar</button>
+              <button onClick={aplicarAjuste} disabled={ajusteApplying}
+                style={{ ...b('gold'), flex:2, opacity: ajusteApplying ? 0.6 : 1 }}>
+                {ajusteApplying ? 'Aplicando...' : 'Confirmar ajuste'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

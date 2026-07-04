@@ -37,7 +37,9 @@ export function POSClient() {
       .then(({ data }) => setCombos((data || []) as Combo[]))
   }, [])
 
-  const filtered = cat === 'Todos' ? productos : productos.filter(p => p.categoria === cat)
+  const [mostrarSinStock, setMostrarSinStock] = useState(false)
+  const filteredBase = cat === 'Todos' ? productos : productos.filter(p => p.categoria === cat)
+  const filtered = mostrarSinStock ? filteredBase : filteredBase.filter(p => (p.stock_kg || 0) > 0)
   const calcSubItem = (i: CartItem) => i.pv * i.qty
   const calcDescItem = (i: CartItem) => {
     const sub = calcSubItem(i)
@@ -350,6 +352,10 @@ export function POSClient() {
         {/* Productos */}
         <div style={{ overflowY: 'auto', paddingBottom: 80 }}>
           <div className="pos-cats">
+            <button onClick={() => setMostrarSinStock(v => !v)}
+              style={{ padding: '5px 12px', borderRadius: 20, cursor: 'pointer', flexShrink: 0, fontSize: 11, fontFamily: 'Georgia,serif', whiteSpace: 'nowrap', border: mostrarSinStock ? '1px solid var(--border)' : '1px solid var(--gold-d)', background: mostrarSinStock ? 'var(--surface)' : 'var(--gold-bg)', color: mostrarSinStock ? 'var(--dim)' : 'var(--gold)' }}>
+              {mostrarSinStock ? '👁 Ver todos' : '✓ Con stock'}
+            </button>
             {CATS.map(c => {
               const color = CAT_COLOR[c]
               const isActive = c === cat
