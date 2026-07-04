@@ -108,7 +108,10 @@ export function ProductosClient() {
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar..." style={{minWidth:140,flex:1}} />
           <select value={catF} onChange={e=>setCatF(e.target.value)} style={{width:140}}><option value="">Todas</option>{CATS.map(c=><option key={c}>{c}</option>)}</select>
         </div>
-        <button onClick={()=>setModal('nuevo')} style={{...b('gold'),whiteSpace:'nowrap'}}>+ Producto</button>
+        <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+          <button onClick={() => setModalAjuste(true)} style={{...b('blue'), whiteSpace:'nowrap'}}>📊 Ajuste %</button>
+          <button onClick={()=>setModal('nuevo')} style={{...b('gold'),whiteSpace:'nowrap'}}>+ Producto</button>
+        </div>
       </div>
 
       {/* Cards móvil */}
