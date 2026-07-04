@@ -258,7 +258,7 @@ export function ProductosClient() {
               {ajustePct && !isNaN(parseFloat(ajustePct)) && (
                 <div style={{ fontSize:11, marginTop:4, color: parseFloat(ajustePct) > 0 ? '#aa2020' : '#1a7a40' }}>
                   {parseFloat(ajustePct) > 0 ? `↑ Aumento de ${ajustePct}%` : `↓ Descuento de ${Math.abs(parseFloat(ajustePct))}%`}
-                  {' — ej: $1.000 → ${Math.ceil(1000 * (1 + parseFloat(ajustePct)/100) / 500) * 500}'}
+                  {` — ej: $1.000 → $${Math.ceil(1000 * (1 + parseFloat(ajustePct)/100) / 500) * 500}`}
                 </div>
               )}
             </div>
