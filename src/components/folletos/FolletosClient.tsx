@@ -167,10 +167,8 @@ export function FolletosClient() {
     }).join('')
 
     const header = [
-      '<div style="padding:10px 16px 8px;text-align:center;border-bottom:3px solid #2C5F2E;">',
-      '<div style="width:80px;margin:0 auto 5px">' + LOGO_REAL + '</div>',
-      '<div style="font-family:Open Sans,Arial,sans-serif;font-size:12px;color:#6B3A2A;letter-spacing:1px">La Esquina</div>',
-      '<div style="font-family:Open Sans,Arial,sans-serif;font-size:12px;color:#6B3A2A">de <strong>Maderna</strong></div>',
+      '<div style="padding:8px 16px;text-align:center;border-bottom:3px solid #2C5F2E;">',
+      '<img src="/logo-lem.png" style="width:100px;height:auto;display:block;margin:0 auto 4px" alt="La Esquina de Maderna" onerror="this.style.display=\'none\'" />',
       '</div>'
     ].join('')
 
@@ -197,18 +195,18 @@ export function FolletosClient() {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #f5f5f5; display: flex; justify-content: center; align-items: flex-start; padding: 10mm; }
-    @page { size: A4 landscape; margin: 5mm; }
+    @page { size: A4 portrait; margin: 8mm; }
     @media print {
       body { background: #fff; padding: 0; }
       .folleto-wrapper { gap: 6mm; }
     }
     .folleto-wrapper {
       display: flex;
-      gap: 8mm;
+      flex-direction: column;
+      gap: 6mm;
       width: 100%;
-      max-width: 277mm;
     }
-    .folleto-wrapper > div { flex: 1; }
+    .folleto-wrapper > div { width: 100%; }
   </style>
 </head>
 <body>
