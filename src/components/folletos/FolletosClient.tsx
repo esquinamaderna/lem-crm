@@ -145,52 +145,46 @@ export function FolletosClient() {
 
   function generarFolletoHTML(prods: Produto[]) {
     const MAX = 12
-    const slots = Array.from({ length: MAX }, (_, i: number) => prods[i] || null)
+    const slots = Array.from({ length: MAX }, (_: any, i: number) => prods[i] || null)
 
-    const WS_ICON = `<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.549 4.1 1.51 5.833L.057 23.428a.75.75 0 0 0 .915.915l5.595-1.453A11.953 11.953 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.65-.524-5.153-1.432l-.369-.225-3.822.993.993-3.822-.225-.369A9.959 9.959 0 0 1 2 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>`
-    const MAP_ICON = `<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`
+    const WS_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.549 4.1 1.51 5.833L.057 23.428a.75.75 0 0 0 .915.915l5.595-1.453A11.953 11.953 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.65-.524-5.153-1.432l-.369-.225-3.822.993.993-3.822-.225-.369A9.959 9.959 0 0 1 2 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>'
+    const MAP_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>'
 
     const bloques = slots.map((p: any) => {
-      if (!p) return \`<div style="border:1px solid #e8e0d0;border-radius:6px;padding:10px;background:#fff;min-height:80px;"></div>\`
+      if (!p) return '<div style="border:1px solid #e8e0d0;border-radius:6px;padding:10px;background:#fff;min-height:80px;"></div>'
       const dot = (CAT_DOT as any)[p.categoria] || '#5C6B3A'
       const unidad = p.unidad_venta === 'u' ? 'por u.' : 'por kg'
-      return \`<div style="border:1px solid #ddd;border-radius:6px;padding:10px 12px;background:#fff;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-          <div style="font-family:'Open Sans',Arial,sans-serif;font-size:13px;color:#2C3333;font-weight:700;line-height:1.3;flex:1;padding-right:8px">\${p.nombre}</div>
-          <div style="width:10px;height:10px;border-radius:50%;background:\${dot};flex-shrink:0;margin-top:3px"></div>
-        </div>
-        <div style="font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:700;color:#C8A020;margin-bottom:3px">\${fmt(p.precio_venta)}</div>
-        <div style="font-family:'Open Sans',Arial,sans-serif;font-size:10px;color:#999">\${unidad}</div>
-      </div>\`
+      return [
+        '<div style="border:1px solid #ddd;border-radius:6px;padding:10px 12px;background:#fff;">',
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">',
+        '<div style="font-family:Open Sans,Arial,sans-serif;font-size:13px;color:#2C3333;font-weight:700;line-height:1.3;flex:1;padding-right:8px">' + p.nombre + '</div>',
+        '<div style="width:10px;height:10px;border-radius:50%;background:' + dot + ';flex-shrink:0;margin-top:3px"></div>',
+        '</div>',
+        '<div style="font-family:Georgia,serif;font-size:20px;font-weight:700;color:#C8A020;margin-bottom:3px">' + fmt(p.precio_venta) + '</div>',
+        '<div style="font-family:Open Sans,Arial,sans-serif;font-size:10px;color:#999">' + unidad + '</div>',
+        '</div>'
+      ].join('')
     }).join('')
 
-    return \`<div style="width:148mm;height:210mm;background:#fff;font-family:'Open Sans',Arial,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;border:1.5px solid #ccc;border-radius:10px;overflow:hidden;">
-      <!-- Header -->
-      <div style="padding:10px 16px 8px;text-align:center;border-bottom:3px solid #2C5F2E;">
-        <div style="width:80px;margin:0 auto 5px">\${LOGO_REAL}</div>
-        <div style="font-family:'Open Sans',Arial,sans-serif;font-size:12px;color:#6B3A2A;letter-spacing:1px">La Esquina</div>
-        <div style="font-family:'Open Sans',Arial,sans-serif;font-size:12px;color:#6B3A2A">de <strong>Maderna</strong></div>
-      </div>
+    const header = [
+      '<div style="padding:10px 16px 8px;text-align:center;border-bottom:3px solid #2C5F2E;">',
+      '<div style="width:80px;margin:0 auto 5px">' + LOGO_REAL + '</div>',
+      '<div style="font-family:Open Sans,Arial,sans-serif;font-size:12px;color:#6B3A2A;letter-spacing:1px">La Esquina</div>',
+      '<div style="font-family:Open Sans,Arial,sans-serif;font-size:12px;color:#6B3A2A">de <strong>Maderna</strong></div>',
+      '</div>'
+    ].join('')
 
-      <!-- Grilla 3x4 -->
-      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:10px;">
-        \${bloques}
-      </div>
+    const grid = '<div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:10px;">' + bloques + '</div>'
 
-      <!-- Footer -->
-      <div style="background:#2C5F2E;padding:10px 16px;display:flex;align-items:center;gap:24px;">
-        <div style="display:flex;align-items:center;gap:7px">
-          \${WS_ICON}
-          <strong style="font-family:'Open Sans',Arial,sans-serif;font-size:13px;color:#fff">\${whatsapp}</strong>
-        </div>
-        <div style="display:flex;align-items:center;gap:7px">
-          \${MAP_ICON}
-          <strong style="font-family:'Open Sans',Arial,sans-serif;font-size:13px;color:#fff">\${direccion}</strong>
-        </div>
-      </div>
-    </div>\`
+    const footer = [
+      '<div style="background:#2C5F2E;padding:10px 16px;display:flex;align-items:center;gap:24px;">',
+      '<div style="display:flex;align-items:center;gap:7px">' + WS_ICON + '<strong style="font-family:Open Sans,Arial,sans-serif;font-size:13px;color:#fff">' + whatsapp + '</strong></div>',
+      '<div style="display:flex;align-items:center;gap:7px">' + MAP_ICON + '<strong style="font-family:Open Sans,Arial,sans-serif;font-size:13px;color:#fff">' + direccion + '</strong></div>',
+      '</div>'
+    ].join('')
+
+    return '<div style="width:148mm;height:210mm;background:#fff;font-family:Open Sans,Arial,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;border:1.5px solid #ccc;border-radius:10px;overflow:hidden;">' + header + grid + footer + '</div>'
   }
-
   function imprimir() {
     if (!prodsSel.length) { alert('Seleccioná al menos un producto'); return }
 
