@@ -157,11 +157,11 @@ export function FolletosClient() {
       return [
         '<div style="border:1px solid #ddd;border-radius:6px;padding:10px 12px;background:#fff;">',
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">',
-        '<div style="font-family:Open Sans,Arial,sans-serif;font-size:13px;color:#2C3333;font-weight:700;line-height:1.3;flex:1;padding-right:8px">' + p.nombre + '</div>',
+        '<div style="font-family:Open Sans,Arial,sans-serif;font-size:15px;color:#2C3333;font-weight:700;line-height:1.3;flex:1;padding-right:8px">' + p.nombre + '</div>',
         '<div style="width:10px;height:10px;border-radius:50%;background:' + dot + ';flex-shrink:0;margin-top:3px"></div>',
         '</div>',
-        '<div style="font-family:Georgia,serif;font-size:20px;font-weight:700;color:#C8A020;margin-bottom:3px">' + fmt(p.precio_venta) + '</div>',
-        '<div style="font-family:Open Sans,Arial,sans-serif;font-size:10px;color:#999">' + unidad + '</div>',
+        '<div style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:#C8A020;margin-bottom:3px">' + fmt(p.precio_venta) + '</div>',
+        '<div style="font-family:Open Sans,Arial,sans-serif;font-size:12px;color:#999">' + unidad + '</div>',
         '</div>'
       ].join('')
     }).join('')
@@ -175,7 +175,7 @@ export function FolletosClient() {
     const grid = '<div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:10px;">' + bloques + '</div>'
 
     const footer = [
-      '<div style="background:#2C5F2E;padding:10px 16px;display:flex;align-items:center;gap:24px;">',
+      '<div style="background:#2C5F2E;padding:12px 16px;display:flex;align-items:center;justify-content:center;gap:32px;">',
       '<div style="display:flex;align-items:center;gap:7px">' + WS_ICON + '<strong style="font-family:Open Sans,Arial,sans-serif;font-size:13px;color:#fff">' + whatsapp + '</strong></div>',
       '<div style="display:flex;align-items:center;gap:7px">' + MAP_ICON + '<strong style="font-family:Open Sans,Arial,sans-serif;font-size:13px;color:#fff">' + direccion + '</strong></div>',
       '</div>'
@@ -194,19 +194,22 @@ export function FolletosClient() {
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #f5f5f5; display: flex; justify-content: center; align-items: flex-start; padding: 10mm; }
-    @page { size: A4 portrait; margin: 8mm; }
+    html, body { width: 297mm; height: 210mm; }
+    body { background: #fff; display: flex; align-items: stretch; }
+    @page { size: 297mm 210mm landscape; margin: 5mm; }
     @media print {
-      body { background: #fff; padding: 0; }
-      .folleto-wrapper { gap: 6mm; }
+      html, body { width: 297mm; height: 210mm; }
+      .folleto-wrapper { height: 200mm; }
     }
     .folleto-wrapper {
       display: flex;
-      flex-direction: column;
-      gap: 6mm;
+      flex-direction: row;
+      gap: 5mm;
       width: 100%;
+      height: 200mm;
+      padding: 0;
     }
-    .folleto-wrapper > div { width: 100%; }
+    .folleto-wrapper > div { flex: 1; min-width: 0; }
   </style>
 </head>
 <body>
