@@ -19,6 +19,7 @@ const NAV_OPERACIONES = [
   { href: '/produccion', label: 'Producción' },
   { href: '/compras',    label: 'Compras' },
   { href: '/etiquetas',  label: 'Etiquetas' },
+  { href: '/folletos',   label: 'Folletos' },
 ]
 const ALL_NAV = [...NAV_TRANSACCIONES, ...NAV_OPERACIONES]
 
