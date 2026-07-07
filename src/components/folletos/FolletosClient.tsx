@@ -97,69 +97,69 @@ export function FolletosClient() {
   const prodsSel = productos.filter(p => seleccionados.includes(p.id))
 
   // ── Generar HTML del folleto A5 ──
+  const CAT_DOT: Record<string,string> = {
+    VACUNO:'#B8392B', CERDO:'#C8A020', POLLO:'#C8A020', PAPAS:'#5C6B3A',
+    JUMBALAY:'#5C6B3A', CORTES:'#B8392B', EMBUTIDOS:'#8B3020', PACKS:'#2C3333'
+  }
+
+  const LOGO_REAL = `<svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="35" width="100" height="40" fill="none" stroke="#2C3333" stroke-width="2"/>
+    <polygon points="10,35 60,5 110,35" fill="none" stroke="#2C3333" stroke-width="2"/>
+    <rect x="45" y="45" width="15" height="30" fill="none" stroke="#2C3333" stroke-width="1.5"/>
+    <rect x="20" y="45" width="12" height="15" fill="none" stroke="#2C3333" stroke-width="1.2"/>
+    <rect x="88" y="45" width="12" height="15" fill="none" stroke="#2C3333" stroke-width="1.2"/>
+    <line x1="55" y1="5" x2="55" y2="0" stroke="#2C3333" stroke-width="1.5"/>
+    <rect x="50" y="0" width="10" height="5" fill="#2C3333"/>
+  </svg>`
+
   function generarFolletoHTML(prods: Produto[]) {
-    const items = prods.map(p => {
-      const icon = CAT_ICON[p.categoria] || CAT_ICON['PACKS']
-      const unidad = (p as any).unidad_venta === 'u' ? 'por u.' : 'por kg'
-      return `
-        <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid ${C.arena};background:${C.blanco};">
-          <div style="width:36px;height:36px;flex-shrink:0">${icon}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-family:'Playfair Display',Georgia,serif;font-size:12px;font-weight:700;color:${C.negro};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nombre}</div>
-            <div style="font-family:'Open Sans',Arial,sans-serif;font-size:10px;color:${C.arena};text-transform:uppercase;letter-spacing:.5px">${p.categoria} · ${unidad}</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-family:'Playfair Display',Georgia,serif;font-size:14px;font-weight:700;color:${C.rojo}">${fmt(p.precio_venta)}</div>
-          </div>
-        </div>`
+    const MAX = 12 // 3 columnas × 4 filas
+    const slots = Array.from({ length: MAX }, (_, i) => prods[i] || null)
+
+    const bloques = slots.map(p => {
+      if (!p) return `<div style="border:1px solid #e8e4dc;border-radius:4px;padding:10px 12px;background:#fff;min-height:60px;"></div>`
+      const dot = CAT_DOT[p.categoria] || '#5C6B3A'
+      const precio = fmt(p.precio_venta)
+      return `<div style="border:1px solid #ddd;border-radius:4px;padding:8px 10px;background:#fff;position:relative;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div style="font-family:'Open Sans',Arial,sans-serif;font-size:10px;color:#2C3333;font-weight:600;line-height:1.3;flex:1;padding-right:6px">${p.nombre}</div>
+          <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0;margin-top:2px"></div>
+        </div>
+        <div style="font-family:'Playfair Display',Georgia,serif;font-size:16px;font-weight:700;color:#C8A020">${precio}</div>
+      </div>`
     }).join('')
 
-    return `
-      <div style="width:148mm;min-height:210mm;background:${C.crema};font-family:'Open Sans',Arial,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;page-break-after:always;">
-        
-        <!-- Header -->
-        <div style="background:${C.negro};padding:14px 16px;display:flex;align-items:center;gap:12px">
-          <div style="width:48px;height:36px;flex-shrink:0">${LOGO_SVG}</div>
-          <div>
-            <div style="font-family:'Open Sans',Arial,sans-serif;font-size:9px;letter-spacing:3px;color:${C.arena};text-transform:uppercase">La Esquina de</div>
-            <div style="font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:700;color:${C.blanco};line-height:1">MADERNA</div>
-          </div>
-          <div style="margin-left:auto;text-align:right">
-            <div style="font-family:'Playfair Display',Georgia,serif;font-size:11px;color:${C.crema};font-style:italic">${subtitulo}</div>
-          </div>
-        </div>
+    return `<div style="width:148mm;height:210mm;background:#fff;font-family:'Open Sans',Arial,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;border:1px solid #ccc;border-radius:8px;overflow:hidden;">
+      <!-- Header -->
+      <div style="padding:12px;text-align:center;border-bottom:3px solid #2C5F2E">
+        <div style="width:60px;margin:0 auto 4px">${LOGO_REAL}</div>
+        <div style="font-family:'Open Sans',Arial,sans-serif;font-size:10px;color:#2C3333;letter-spacing:1px">La Esquina</div>
+        <div style="font-family:'Open Sans',Arial,sans-serif;font-size:10px;color:#2C3333">de <strong>Maderna</strong></div>
+      </div>
+      <div style="height:2px;background:#2C5F2E;opacity:.3"></div>
 
-        <!-- Título lista -->
-        <div style="background:${C.rojo};padding:8px 16px;text-align:center">
-          <div style="font-family:'Playfair Display',Georgia,serif;font-size:14px;font-weight:700;color:${C.blanco};letter-spacing:2px">${titulo}</div>
-        </div>
+      <!-- Grilla 3x4 -->
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:10px;">
+        ${bloques}
+      </div>
 
-        <!-- Productos -->
-        <div style="flex:1;padding:0;overflow:hidden">
-          ${items}
+      <!-- Footer -->
+      <div style="height:2px;background:#2C5F2E;opacity:.3"></div>
+      <div style="background:#2C5F2E;padding:8px 14px;display:flex;align-items:center;gap:20px">
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:13px">💬</span>
+          <strong style="font-family:'Open Sans',Arial,sans-serif;font-size:10px;color:#fff">${whatsapp}</strong>
         </div>
-
-        <!-- Footer -->
-        <div style="background:${C.negro};padding:10px 16px;display:flex;align-items:center;justify-content:space-between;margin-top:auto">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="color:${C.rojo};font-size:14px">📍</span>
-            <span style="font-family:'Open Sans',Arial,sans-serif;font-size:10px;color:${C.crema}">${direccion}</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="color:${C.rojo};font-size:14px">💬</span>
-            <span style="font-family:'Open Sans',Arial,sans-serif;font-size:10px;color:${C.crema}">${whatsapp}</span>
-          </div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:13px">📍</span>
+          <strong style="font-family:'Open Sans',Arial,sans-serif;font-size:10px;color:#fff">${direccion}</strong>
         </div>
-      </div>`
+      </div>
+    </div>`
   }
 
   function imprimir() {
     if (!prodsSel.length) { alert('Seleccioná al menos un producto'); return }
-
-    // Dividir en dos grupos para dos folletos por hoja A4
-    const mitad = Math.ceil(prodsSel.length / 2)
-    const grupo1 = prodsSel.slice(0, mitad)
-    const grupo2 = prodsSel.slice(mitad)
 
     const html = `<!DOCTYPE html>
 <html>
@@ -169,35 +169,31 @@ export function FolletosClient() {
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #fff; }
-    @page { size: A4; margin: 8mm; }
+    body { background: #f5f5f5; display: flex; justify-content: center; align-items: flex-start; padding: 10mm; }
+    @page { size: A4 landscape; margin: 6mm; }
     @media print {
-      .no-print { display: none !important; }
-      .folleto-wrapper { 
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8mm;
-        width: 100%;
-      }
+      body { background: #fff; padding: 0; }
+      .folleto-wrapper { gap: 6mm; }
     }
     .folleto-wrapper {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
       gap: 8mm;
-      padding: 8mm;
+      width: 100%;
+      max-width: 277mm;
     }
+    .folleto-wrapper > div { flex: 1; }
   </style>
 </head>
 <body>
   <div class="folleto-wrapper">
-    ${generarFolletoHTML(grupo1)}
-    ${grupo2.length > 0 ? generarFolletoHTML(grupo2) : generarFolletoHTML(grupo1)}
+    ${generarFolletoHTML(prodsSel)}
+    ${generarFolletoHTML(prodsSel)}
   </div>
-  <script>window.onload = () => { window.print() }<\/script>
+  <script>window.onload = () => setTimeout(() => window.print(), 800)<\/script>
 </body>
 </html>`
 
-    const ventana = window.open('', '_blank', 'width=900,height=700')
+    const ventana = window.open('', '_blank', 'width=1100,height=750')
     if (!ventana) return
     ventana.document.write(html)
     ventana.document.close()
@@ -294,36 +290,25 @@ export function FolletosClient() {
           <div style={{ background:'#fff', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden', boxShadow:'var(--shadow)' }}>
 
             {/* Header preview */}
-            <div style={{ background:C.negro, padding:'10px 12px', display:'flex', alignItems:'center', gap:8 }}>
-              <div style={{ width:36, height:27 }} dangerouslySetInnerHTML={{ __html: LOGO_SVG }} />
-              <div>
-                <div style={{ fontFamily:'Open Sans,sans-serif', fontSize:7, letterSpacing:2, color:C.arena, textTransform:'uppercase' }}>La Esquina de</div>
-                <div style={{ fontFamily:'Georgia,serif', fontSize:14, fontWeight:'bold', color:C.blanco, lineHeight:1 }}>MADERNA</div>
-              </div>
-              <div style={{ marginLeft:'auto', textAlign:'right' }}>
-                <div style={{ fontFamily:'Georgia,serif', fontSize:8, color:C.crema, fontStyle:'italic' }}>{subtitulo}</div>
-              </div>
+            <div style={{ padding:'8px', textAlign:'center', borderBottom:'2px solid #2C5F2E' }}>
+              <div style={{ fontSize:10, color:'#2C3333' }}>La Esquina de <strong>Maderna</strong></div>
             </div>
 
-            {/* Título preview */}
-            <div style={{ background:C.rojo, padding:'5px 12px', textAlign:'center' }}>
-              <div style={{ fontFamily:'Georgia,serif', fontSize:10, fontWeight:'bold', color:C.blanco, letterSpacing:2 }}>{titulo}</div>
-            </div>
-
-            {/* Items preview */}
-            <div style={{ maxHeight:340, overflowY:'auto' }}>
+            {/* Items preview — grilla 3x4 */}
+            <div style={{ padding:6, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:4, minHeight:200 }}>
               {prodsSel.length === 0
-                ? <div style={{ textAlign:'center', color:'var(--dim)', padding:30, fontSize:12 }}>Seleccioná productos de la lista</div>
-                : prodsSel.map(p => {
-                    const icon = CAT_ICON[p.categoria] || CAT_ICON['PACKS']
+                ? <div style={{ gridColumn:'1/-1', textAlign:'center', color:'var(--dim)', padding:20, fontSize:11 }}>Seleccioná productos de la lista</div>
+                : Array.from({ length: 12 }, (_, i) => {
+                    const p = prodsSel[i]
+                    if (!p) return <div key={i} style={{ border:'1px solid #eee', borderRadius:3, minHeight:44 }} />
+                    const dot = { VACUNO:'#B8392B', CERDO:'#C8A020', POLLO:'#C8A020', PAPAS:'#5C6B3A', JUMBALAY:'#5C6B3A', CORTES:'#B8392B', EMBUTIDOS:'#8B3020', PACKS:'#2C3333' }[p.categoria] || '#5C6B3A'
                     return (
-                      <div key={p.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 8px', borderBottom:`1px solid ${C.arena}` }}>
-                        <div style={{ width:24, height:24, flexShrink:0 }} dangerouslySetInnerHTML={{ __html: icon }} />
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontFamily:'Georgia,serif', fontSize:10, fontWeight:'bold', color:C.negro, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.nombre}</div>
-                          <div style={{ fontSize:8, color:C.arena, textTransform:'uppercase', letterSpacing:.5 }}>{p.categoria}</div>
+                      <div key={i} style={{ border:'1px solid #ddd', borderRadius:3, padding:'5px 6px', background:'#fff' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:3 }}>
+                          <div style={{ fontSize:8, color:'#2C3333', fontWeight:'bold', lineHeight:1.2, flex:1, paddingRight:3, overflow:'hidden' }}>{p.nombre}</div>
+                          <div style={{ width:6, height:6, borderRadius:'50%', background:dot, flexShrink:0, marginTop:1 }} />
                         </div>
-                        <div style={{ fontFamily:'Georgia,serif', fontSize:11, fontWeight:'bold', color:C.rojo, flexShrink:0 }}>{fmt(p.precio_venta)}</div>
+                        <div style={{ fontFamily:'Georgia,serif', fontSize:10, fontWeight:'bold', color:'#C8A020' }}>{fmt(p.precio_venta)}</div>
                       </div>
                     )
                   })
@@ -331,15 +316,15 @@ export function FolletosClient() {
             </div>
 
             {/* Footer preview */}
-            <div style={{ background:C.negro, padding:'7px 12px', display:'flex', justifyContent:'space-between' }}>
-              <span style={{ fontSize:9, color:C.crema }}>📍 {direccion}</span>
-              <span style={{ fontSize:9, color:C.crema }}>💬 {whatsapp}</span>
+            <div style={{ background:'#2C5F2E', padding:'6px 10px', display:'flex', gap:12 }}>
+              <span style={{ fontSize:9, color:'#fff' }}>💬 {whatsapp}</span>
+              <span style={{ fontSize:9, color:'#fff' }}>📍 {direccion}</span>
             </div>
           </div>
 
           <div style={{ marginTop:10, fontSize:11, color:'var(--muted)', textAlign:'center' }}>
-            El folleto se imprime 2 veces por hoja A4.<br/>
-            Si seleccionás muchos productos se dividen en partes iguales.
+            Dos folletos idénticos por hoja A4 apaisada.<br/>
+            Máximo 12 productos por folleto (3 × 4 grilla).
           </div>
         </div>
       </div>
