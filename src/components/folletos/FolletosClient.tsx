@@ -64,7 +64,7 @@ export function FolletosClient() {
   const [titulo, setTitulo] = useState('LISTA DE PRECIOS')
   const [subtitulo, setSubtitulo] = useState('VIANDAS CON HISTORIA. SABOR DE BARRIO.')
   const [whatsapp, setWhatsapp] = useState('11.6464.0732')
-  const [direccion, setDireccion] = useState('Madero 1802 San Fernando')
+  const [direccion, setDireccion] = useState('Alem 1013 San Fernando esq. Madero')
   const [mostrarSoloConStock, setMostrarSoloConStock] = useState(true)
 
   useEffect(() => { load() }, [])
