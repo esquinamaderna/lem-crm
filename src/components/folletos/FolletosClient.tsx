@@ -82,7 +82,11 @@ export function FolletosClient() {
   })
 
   function toggleProd(id: number) {
-    setSeleccionados(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+    setSeleccionados(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id)
+      if (prev.length >= 12) { alert('Máximo 12 productos por folleto'); return prev }
+      return [...prev, id]
+    })
   }
 
   function selTodos() {
@@ -144,44 +148,75 @@ export function FolletosClient() {
 </svg>`
 
   function generarFolletoHTML(prods: Produto[]) {
-    const MAX = 12
+    const n = prods.length
+
+    // Grilla adaptiva según cantidad de productos
+    // cols x rows: minimizar espacio desperdiciado
+    const layout: Record<number, {cols: number; rows: number}> = {
+      1:  { cols: 1, rows: 1 },
+      2:  { cols: 2, rows: 1 },
+      3:  { cols: 3, rows: 1 },
+      4:  { cols: 2, rows: 2 },
+      5:  { cols: 3, rows: 2 },
+      6:  { cols: 3, rows: 2 },
+      7:  { cols: 3, rows: 3 },
+      8:  { cols: 3, rows: 3 },
+      9:  { cols: 3, rows: 3 },
+      10: { cols: 3, rows: 4 },
+      11: { cols: 3, rows: 4 },
+      12: { cols: 3, rows: 4 },
+    }
+
+    const { cols, rows } = layout[Math.min(n, 12)] || { cols: 3, rows: 4 }
+    const MAX = cols * rows
     const slots = Array.from({ length: MAX }, (_: any, i: number) => prods[i] || null)
 
-    const WS_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.549 4.1 1.51 5.833L.057 23.428a.75.75 0 0 0 .915.915l5.595-1.453A11.953 11.953 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.65-.524-5.153-1.432l-.369-.225-3.822.993.993-3.822-.225-.369A9.959 9.959 0 0 1 2 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>'
-    const MAP_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>'
+    // Tamaño de fuente adaptivo
+    const fs_nombre = n <= 3 ? 22 : n <= 6 ? 18 : n <= 9 ? 15 : 13
+    const fs_precio = n <= 3 ? 34 : n <= 6 ? 28 : n <= 9 ? 22 : 18
+    const fs_unidad = n <= 3 ? 16 : n <= 6 ? 13 : n <= 9 ? 11 : 10
+    const pad = n <= 3 ? '18px 20px' : n <= 6 ? '14px 16px' : '10px 12px'
+
+    const WS_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.549 4.1 1.51 5.833L.057 23.428a.75.75 0 0 0 .915.915l5.595-1.453A11.953 11.953 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.886 0-3.65-.524-5.153-1.432l-.369-.225-3.822.993.993-3.822-.225-.369A9.959 9.959 0 0 1 2 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>'
+    const MAP_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>'
 
     const bloques = slots.map((p: any) => {
-      if (!p) return '<div style="border:1px solid #e8e0d0;border-radius:6px;padding:10px;background:#fff;min-height:80px;"></div>'
+      if (!p) return '<div style="border:1px solid #e8e0d0;border-radius:8px;padding:' + pad + ';background:#fff;"></div>'
       const dot = (CAT_DOT as any)[p.categoria] || '#5C6B3A'
       const unidad = p.unidad_venta === 'u' ? 'por u.' : 'por kg'
       return [
-        '<div style="border:1px solid #ddd;border-radius:6px;padding:10px 12px;background:#fff;">',
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">',
-        '<div style="font-family:Open Sans,Arial,sans-serif;font-size:15px;color:#2C3333;font-weight:700;line-height:1.3;flex:1;padding-right:8px">' + p.nombre + '</div>',
-        '<div style="width:10px;height:10px;border-radius:50%;background:' + dot + ';flex-shrink:0;margin-top:3px"></div>',
+        '<div style="border:1px solid #ddd;border-radius:8px;padding:' + pad + ';background:#fff;display:flex;flex-direction:column;justify-content:space-between;">',
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">',
+        '<div style="font-family:Open Sans,Arial,sans-serif;font-size:' + fs_nombre + 'px;color:#2C3333;font-weight:700;line-height:1.3;flex:1;padding-right:8px">' + p.nombre + '</div>',
+        '<div style="width:' + (fs_nombre > 16 ? 14 : 10) + 'px;height:' + (fs_nombre > 16 ? 14 : 10) + 'px;border-radius:50%;background:' + dot + ';flex-shrink:0;margin-top:4px"></div>',
         '</div>',
-        '<div style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:#C8A020;margin-bottom:3px">' + fmt(p.precio_venta) + '</div>',
-        '<div style="font-family:Open Sans,Arial,sans-serif;font-size:12px;color:#999">' + unidad + '</div>',
+        '<div>',
+        '<div style="font-family:Georgia,serif;font-size:' + fs_precio + 'px;font-weight:700;color:#C8A020;margin-bottom:4px">' + fmt(p.precio_venta) + '</div>',
+        '<div style="font-family:Open Sans,Arial,sans-serif;font-size:' + fs_unidad + 'px;color:#999">' + unidad + '</div>',
+        '</div>',
         '</div>'
       ].join('')
     }).join('')
 
+    const logoSize = n <= 3 ? '120px' : n <= 9 ? '90px' : '75px'
+    const logoFontSize = n <= 3 ? '14px' : '12px'
+
     const header = [
-      '<div style="padding:8px 16px;text-align:center;border-bottom:3px solid #2C5F2E;">',
-      '<img src="/logo-lem.png" style="width:100px;height:auto;display:block;margin:0 auto 4px" alt="La Esquina de Maderna" onerror="this.style.display=\'none\'" />',
+      '<div style="padding:10px 16px 8px;text-align:center;border-bottom:3px solid #2C5F2E;">',
+      '<img src="/logo-lem.png" style="width:' + logoSize + ';height:auto;display:block;margin:0 auto 4px" alt="La Esquina de Maderna" />',
       '</div>'
     ].join('')
 
-    const grid = '<div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:10px;">' + bloques + '</div>'
+    const grid = '<div style="flex:1;display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:7px;padding:10px;">' + bloques + '</div>'
 
     const footer = [
       '<div style="background:#2C5F2E;padding:12px 16px;display:flex;align-items:center;justify-content:center;gap:32px;">',
-      '<div style="display:flex;align-items:center;gap:7px">' + WS_ICON + '<strong style="font-family:Open Sans,Arial,sans-serif;font-size:13px;color:#fff">' + whatsapp + '</strong></div>',
-      '<div style="display:flex;align-items:center;gap:7px">' + MAP_ICON + '<strong style="font-family:Open Sans,Arial,sans-serif;font-size:13px;color:#fff">' + direccion + '</strong></div>',
+      '<div style="display:flex;align-items:center;gap:8px">' + WS_ICON + '<strong style="font-family:Open Sans,Arial,sans-serif;font-size:14px;color:#fff">' + whatsapp + '</strong></div>',
+      '<div style="display:flex;align-items:center;gap:8px">' + MAP_ICON + '<strong style="font-family:Open Sans,Arial,sans-serif;font-size:14px;color:#fff">' + direccion + '</strong></div>',
       '</div>'
     ].join('')
 
-    return '<div style="width:148mm;height:210mm;background:#fff;font-family:Open Sans,Arial,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;border:1.5px solid #ccc;border-radius:10px;overflow:hidden;">' + header + grid + footer + '</div>'
+    return '<div style="width:100%;height:100%;background:#fff;font-family:Open Sans,Arial,sans-serif;display:flex;flex-direction:column;box-sizing:border-box;border:1.5px solid #ccc;border-radius:10px;overflow:hidden;">' + header + grid + footer + '</div>'
   }
   function imprimir() {
     if (!prodsSel.length) { alert('Seleccioná al menos un producto'); return }
@@ -236,7 +271,7 @@ export function FolletosClient() {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:10 }}>
         <div>
           <div style={{ fontSize:10, letterSpacing:2, textTransform:'uppercase', color:'var(--muted)', marginBottom:4 }}>Generador de folletos A5</div>
-          <div style={{ fontSize:12, color:'var(--dim)' }}>{seleccionados.length} productos seleccionados · 2 folletos por hoja A4</div>
+          <div style={{ fontSize:12, color: seleccionados.length >= 12 ? '#aa2020' : seleccionados.length >= 9 ? 'var(--gold)' : 'var(--dim)' }}>{seleccionados.length}/12 productos seleccionados · 2 folletos por hoja A4{seleccionados.length >= 12 ? ' — MÁXIMO ALCANZADO' : ''}</div>
         </div>
         <button onClick={imprimir} style={{ ...b('gold'), padding:'8px 20px', fontSize:13 }}>🖨 Imprimir folletos</button>
       </div>
@@ -322,26 +357,34 @@ export function FolletosClient() {
               <div style={{ fontSize:10, color:'#2C3333' }}>La Esquina de <strong>Maderna</strong></div>
             </div>
 
-            {/* Items preview — grilla 3x4 */}
-            <div style={{ padding:6, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:4, minHeight:200 }}>
-              {prodsSel.length === 0
-                ? <div style={{ gridColumn:'1/-1', textAlign:'center', color:'var(--dim)', padding:20, fontSize:11 }}>Seleccioná productos de la lista</div>
-                : Array.from({ length: 12 }, (_, i) => {
-                    const p = prodsSel[i]
-                    if (!p) return <div key={i} style={{ border:'1px solid #eee', borderRadius:3, minHeight:44 }} />
-                    const dot = { VACUNO:'#B8392B', CERDO:'#C8A020', POLLO:'#C8A020', PAPAS:'#5C6B3A', JUMBALAY:'#5C6B3A', CORTES:'#B8392B', EMBUTIDOS:'#8B3020', PACKS:'#2C3333' }[p.categoria] || '#5C6B3A'
-                    return (
-                      <div key={i} style={{ border:'1px solid #ddd', borderRadius:3, padding:'5px 6px', background:'#fff' }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:3 }}>
-                          <div style={{ fontSize:8, color:'#2C3333', fontWeight:'bold', lineHeight:1.2, flex:1, paddingRight:3, overflow:'hidden' }}>{p.nombre}</div>
-                          <div style={{ width:6, height:6, borderRadius:'50%', background:dot, flexShrink:0, marginTop:1 }} />
-                        </div>
-                        <div style={{ fontFamily:'Georgia,serif', fontSize:10, fontWeight:'bold', color:'#C8A020' }}>{fmt(p.precio_venta)}</div>
-                      </div>
-                    )
-                  })
-              }
-            </div>
+            {/* Items preview — grilla adaptiva */}
+            {(() => {
+              const n = prodsSel.length
+              const layoutP: Record<number, number> = { 1:1, 2:2, 3:3, 4:2, 5:3, 6:3, 7:3, 8:3, 9:3, 10:3, 11:3, 12:3 }
+              const cols = layoutP[Math.min(n, 12)] || 3
+              const CAT_DOT_P: Record<string,string> = { VACUNO:'#B8392B', CERDO:'#C8A020', POLLO:'#C8A020', PAPAS:'#5C6B3A', JUMBALAY:'#5C6B3A', CORTES:'#B8392B', EMBUTIDOS:'#8B3020', PACKS:'#2C3333' }
+              return (
+                <div style={{ padding:6, display:'grid', gridTemplateColumns:`repeat(${cols},1fr)`, gap:4, minHeight:200 }}>
+                  {prodsSel.length === 0
+                    ? <div style={{ gridColumn:'1/-1', textAlign:'center', color:'var(--dim)', padding:20, fontSize:11 }}>Seleccioná productos de la lista</div>
+                    : prodsSel.map((p, i) => {
+                        const dot = CAT_DOT_P[p.categoria] || '#5C6B3A'
+                        const fs = n <= 3 ? 11 : n <= 6 ? 9 : 8
+                        const fsp = n <= 3 ? 13 : n <= 6 ? 11 : 9
+                        return (
+                          <div key={i} style={{ border:'1px solid #ddd', borderRadius:4, padding:'5px 6px', background:'#fff' }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:3 }}>
+                              <div style={{ fontSize:fs, color:'#2C3333', fontWeight:'bold', lineHeight:1.2, flex:1, paddingRight:3 }}>{p.nombre}</div>
+                              <div style={{ width:6, height:6, borderRadius:'50%', background:dot, flexShrink:0, marginTop:1 }} />
+                            </div>
+                            <div style={{ fontFamily:'Georgia,serif', fontSize:fsp, fontWeight:'bold', color:'#C8A020' }}>{fmt(p.precio_venta)}</div>
+                          </div>
+                        )
+                      })
+                  }
+                </div>
+              )
+            })()}
 
             {/* Footer preview */}
             <div style={{ background:'#2C5F2E', padding:'6px 10px', display:'flex', gap:12 }}>
