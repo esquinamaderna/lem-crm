@@ -21,6 +21,7 @@ export function ProductosClient() {
   const [npNombre, setNpNombre] = useState(''); const [npCat, setNpCat] = useState('VACUNO')
   const [npPv, setNpPv] = useState(''); const [npCosto, setNpCosto] = useState(''); const [npStock, setNpStock] = useState('0'); const [npVida, setNpVida] = useState('90')
   const [npUnidad, setNpUnidad] = useState('kg')
+  const [npCongelado, setNpCongelado] = useState(false)
   const [modalAjuste, setModalAjuste] = useState(false)
   const [ajustePct, setAjustePct] = useState('')
   const [ajusteCats, setAjusteCats] = useState<string[]>([])
@@ -157,7 +158,16 @@ export function ProductosClient() {
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{display:'inline-block',padding:'2px 8px',borderRadius:4,fontSize:10,color:fcColor,border:`1px solid ${fcColor}44`,background:`${fcColor}18`}}>{(fc*100).toFixed(0)}%</span></td>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)',color:stkColor}}>{fmtN(stk, (p as any).unidad_venta==='u' ? 0 : 1)} {(p as any).unidad_venta||'kg'}</td>
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><span style={{fontSize:10,padding:'2px 6px',borderRadius:4,background:'var(--bg)',border:'1px solid var(--border)',color:'var(--muted)'}}>{(p as any).unidad_venta||'kg'}</span></td>
-                <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}><button onClick={()=>abrirStock(p)} style={{...b(),padding:'4px 8px',fontSize:11}}>📦 Stock</button></td>
+                <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}>
+                  <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                    <button onClick={()=>abrirStock(p)} style={{...b(),padding:'4px 8px',fontSize:11}}>📦 Stock</button>
+                    <button title={(p as any).congelado ? 'Congelado — click para quitar' : 'No congelado — click para marcar'}
+                      onClick={async()=>{ await supabase.from('productos').update({congelado:!(p as any).congelado}).eq('id',p.id); load() }}
+                      style={{padding:'4px 7px',borderRadius:6,border:(p as any).congelado?'1px solid #2C5F2E':'1px solid var(--border)',background:(p as any).congelado?'rgba(44,95,46,.1)':'var(--card)',cursor:'pointer',fontSize:12}}>
+                      ❄
+                    </button>
+                  </div>
+                </td>
               </tr>
             })}
           </tbody>
@@ -184,24 +194,12 @@ export function ProductosClient() {
                 <input value={(editProd as any)?.rnpa||''} onChange={e => setEditProd(prev => prev ? { ...prev, rnpa: e.target.value } : prev)} placeholder="Registro ANMAT" />
               </div>
               <div style={{display:'flex',alignItems:'center',gap:8,paddingTop:4}}>
-                <input type="checkbox" id="chk-cong" checked={!!(editProd as any)?.congelado} onChange={e => setEditProd(prev => prev ? { ...prev, congelado: e.target.checked } : prev)} />
-                <label htmlFor="chk-cong" style={{fontSize:12,color:'var(--text)',cursor:'pointer'}}>❄ Producto congelado</label>
+                <input type="checkbox" id="chk-cong-np" checked={npCongelado} onChange={e => setNpCongelado(e.target.checked)} />
+                <label htmlFor="chk-cong-np" style={{fontSize:12,color:'var(--text)',cursor:'pointer'}}>❄ Producto congelado</label>
               </div>
               <div><label style={lbl}>Unidad de venta</label><select value={npUnidad} onChange={e=>setNpUnidad(e.target.value)}><option value="kg">kg (por peso)</option><option value="u">u (por unidad)</option><option value="L">L (por litro)</option></select></div><div><label style={lbl}>Stock inicial</label><input type="number" value={npStock} onChange={e=>setNpStock(e.target.value)} /></div>
               <div><label style={lbl}>Vida útil (días)</label><input type="number" value={npVida} onChange={e=>setNpVida(e.target.value)} /></div>
-              <div><label style={lbl}>Código interno</label>
-                <input value={(editProd as any)?.cod_interno||''} onChange={e => setEditProd(prev => prev ? { ...prev, cod_interno: e.target.value } : prev)} placeholder="LEM-001" />
-              </div>
-              <div><label style={lbl}>EAN-13</label>
-                <input value={(editProd as any)?.codigo_ean||''} onChange={e => setEditProd(prev => prev ? { ...prev, codigo_ean: e.target.value } : prev)} placeholder="7790001000019" maxLength={13} style={{fontFamily:'monospace'}} />
-              </div>
-              <div><label style={lbl}>RNPA (elaborados)</label>
-                <input value={(editProd as any)?.rnpa||''} onChange={e => setEditProd(prev => prev ? { ...prev, rnpa: e.target.value } : prev)} placeholder="Registro ANMAT" />
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:8,paddingTop:4}}>
-                <input type="checkbox" id="chk-cong" checked={!!(editProd as any)?.congelado} onChange={e => setEditProd(prev => prev ? { ...prev, congelado: e.target.checked } : prev)} />
-                <label htmlFor="chk-cong" style={{fontSize:12,color:'var(--text)',cursor:'pointer'}}>❄ Producto congelado</label>
-              </div>
+
               <div><label style={lbl}>Unidad de venta</label>
                 <select value={npUnidad||'kg'} onChange={e=>setNpUnidad(e.target.value)}>
                   <option value="kg">kg (por peso)</option>
