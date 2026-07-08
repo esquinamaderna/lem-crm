@@ -193,6 +193,7 @@ export function FolletosClient() {
         '<div>',
         '<div style="font-family:Georgia,serif;font-size:' + fs_precio + 'px;font-weight:700;color:#C8A020;margin-bottom:4px">' + fmt(p.precio_venta) + '</div>',
         '<div style="font-family:Open Sans,Arial,sans-serif;font-size:' + fs_unidad + 'px;color:#999">' + unidad + '</div>',
+        (p.congelado ? '<div style="font-family:Open Sans,Arial,sans-serif;font-size:' + fs_unidad + 'px;color:#2C5F2E;font-weight:600;margin-top:3px">❄ Producto congelado</div>' : ''),
         '</div>',
         '</div>'
       ].join('')

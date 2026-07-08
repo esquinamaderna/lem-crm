@@ -183,6 +183,10 @@ export function ProductosClient() {
               <div><label style={lbl}>RNPA (elaborados)</label>
                 <input value={(editProd as any)?.rnpa||''} onChange={e => setEditProd(prev => prev ? { ...prev, rnpa: e.target.value } : prev)} placeholder="Registro ANMAT" />
               </div>
+              <div style={{display:'flex',alignItems:'center',gap:8,paddingTop:4}}>
+                <input type="checkbox" id="chk-cong" checked={!!(editProd as any)?.congelado} onChange={e => setEditProd(prev => prev ? { ...prev, congelado: e.target.checked } : prev)} />
+                <label htmlFor="chk-cong" style={{fontSize:12,color:'var(--text)',cursor:'pointer'}}>❄ Producto congelado</label>
+              </div>
               <div><label style={lbl}>Unidad de venta</label><select value={npUnidad} onChange={e=>setNpUnidad(e.target.value)}><option value="kg">kg (por peso)</option><option value="u">u (por unidad)</option><option value="L">L (por litro)</option></select></div><div><label style={lbl}>Stock inicial</label><input type="number" value={npStock} onChange={e=>setNpStock(e.target.value)} /></div>
               <div><label style={lbl}>Vida útil (días)</label><input type="number" value={npVida} onChange={e=>setNpVida(e.target.value)} /></div>
               <div><label style={lbl}>Código interno</label>
@@ -193,6 +197,10 @@ export function ProductosClient() {
               </div>
               <div><label style={lbl}>RNPA (elaborados)</label>
                 <input value={(editProd as any)?.rnpa||''} onChange={e => setEditProd(prev => prev ? { ...prev, rnpa: e.target.value } : prev)} placeholder="Registro ANMAT" />
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:8,paddingTop:4}}>
+                <input type="checkbox" id="chk-cong" checked={!!(editProd as any)?.congelado} onChange={e => setEditProd(prev => prev ? { ...prev, congelado: e.target.checked } : prev)} />
+                <label htmlFor="chk-cong" style={{fontSize:12,color:'var(--text)',cursor:'pointer'}}>❄ Producto congelado</label>
               </div>
               <div><label style={lbl}>Unidad de venta</label>
                 <select value={npUnidad||'kg'} onChange={e=>setNpUnidad(e.target.value)}>
