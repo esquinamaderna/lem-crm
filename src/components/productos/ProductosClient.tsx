@@ -107,7 +107,7 @@ export function ProductosClient() {
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14,gap:8,flexWrap:'wrap'}}>
         <div style={{display:'flex',gap:8,flex:1,flexWrap:'wrap'}}>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar..." style={{minWidth:140,flex:1}} />
-          <select value={catF} onChange={e=>setCatF(e.target.value)} style={{width:140}}><option value="">Todas</option>{CATS.map(c=><option key={c}>{c}</option>)}</select>
+          <select value={catF} onChange={e=>setCatF(e.target.value)} style={{width:180}}><option value="">Todas</option>{CATS.map(c=><option key={c}>{c}</option>)}</select>
         </div>
         <div style={{ display:'flex', gap:8, flexShrink:0 }}>
           <button onClick={() => setModalAjuste(true)} style={{...b('blue'), whiteSpace:'nowrap'}}>📊 Ajuste %</button>

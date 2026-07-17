@@ -337,13 +337,13 @@ export function POSClient() {
         .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 14px; height: calc(100vh - 82px); }
         .pos-sidebar { display: flex; flex-direction: column; }
         .pos-fab { display: none; }
-        .pos-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; overflow-x: auto; padding-bottom: 2px; }
+        .pos-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
         .prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
         @media (max-width: 1024px) {
           .pos-layout { grid-template-columns: 1fr; height: auto; }
           .pos-sidebar { display: none; }
           .pos-fab { display: flex !important; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 80; min-width: 220px; }
-          .pos-cats { flex-wrap: nowrap; }
+          .pos-cats { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
           .prod-grid { grid-template-columns: repeat(2, 1fr); }
         }
       `}</style>
