@@ -6,7 +6,7 @@ import { fmt, fmtN, today, nowTime, CAT_COLOR } from '@/lib/utils'
 import type { Producto, CartItem } from '@/types/database'
 import { PRODUCTOS_DEFAULT } from '@/lib/productos-default'
 
-const CATS = ['Todos', 'VACUNO', 'CERDO', 'POLLO', 'PAPAS', 'JUMBALAY', 'PACKS', 'CORTES', 'EMBUTIDOS', 'CONGELADOS']
+const CATS = ['Todos', 'VACUNO', 'CERDO', 'POLLO', 'PAPAS', 'JUMBALAY', 'PACKS', 'CORTES', 'EMBUTIDOS', 'CONGELADOS', 'ALMACEN']
 const PAGOS = ['Efectivo', 'Transferencia', 'Transferencia MP', 'MercadoPago', 'Débito', 'Crédito']
 const btnSm: React.CSSProperties = { padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif' }
 
