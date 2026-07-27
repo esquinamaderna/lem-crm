@@ -61,9 +61,19 @@ export interface Producto {
   receta?: string[] | string
   activo: boolean
   visible_catalogo: boolean
-  unidad_venta?: 'kg' | 'u' | 'L'
-  tipo_producto?: 'elaborado' | 'reventa'
   unidad_venta: 'kg' | 'u' | 'L'
+  tipo_producto?: 'elaborado' | 'reventa'
+  cod_interno?: string
+  codigo_ean?: string
+  rnpa?: string
+  congelado?: boolean
+  destacado?: boolean
+  peso?: string
+  porciones?: string
+  ingredientes?: string
+  informacion_nutricional?: string
+  maridaje?: string
+  video_url?: string
   created_at?: string
   updated_at?: string
 }

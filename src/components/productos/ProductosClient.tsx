@@ -15,18 +15,22 @@ export function ProductosClient() {
   const [prods, setProds] = useState<Producto[]>([])
   const [search, setSearch] = useState('')
   const [catF, setCatF] = useState('')
-  const [modal, setModal] = useState<'nuevo'|'stock'|null>(null)
+  const [modal, setModal] = useState<'nuevo'|'stock'|'editar'|null>(null)
   const [stockProd, setStockProd] = useState<Producto|null>(null)
   const [stkTipo, setStkTipo] = useState('set'); const [stkVal, setStkVal] = useState(''); const [stkMotivo, setStkMotivo] = useState('')
   const [npNombre, setNpNombre] = useState(''); const [npCat, setNpCat] = useState('VACUNO')
   const [npPv, setNpPv] = useState(''); const [npCosto, setNpCosto] = useState(''); const [npStock, setNpStock] = useState('0'); const [npVida, setNpVida] = useState('90')
   const [npUnidad, setNpUnidad] = useState('kg')
   const [npCongelado, setNpCongelado] = useState(false)
+  const [npCodInterno, setNpCodInterno] = useState(''); const [npEan, setNpEan] = useState(''); const [npRnpa, setNpRnpa] = useState('')
   const [modalAjuste, setModalAjuste] = useState(false)
   const [ajustePct, setAjustePct] = useState('')
   const [ajusteCats, setAjusteCats] = useState<string[]>([])
   const [ajusteNombre, setAjusteNombre] = useState('')
   const [ajusteApplying, setAjusteApplying] = useState(false); const [npInst, setNpInst] = useState('')
+  // Ficha completa del producto (para la web de la tienda)
+  const [editProd, setEditProd] = useState<Producto|null>(null)
+  const [guardandoEdit, setGuardandoEdit] = useState(false)
 
   useEffect(()=>{load()},[])
   async function load() {
@@ -65,11 +69,49 @@ export function ProductosClient() {
   async function guardarNuevo() {
     if(!npNombre.trim()) return
     const pv=parseFloat(npPv); const costo=parseFloat(npCosto)
-    await supabase.from('productos').insert({nombre:npNombre,categoria:npCat as Producto['categoria'],precio_venta:pv,costo,stock_kg:parseFloat(npStock)||0,vida_util_dias:parseInt(npVida)||90,instrucciones:npInst,activo:true,unidad_venta:npUnidad})
-    setModal(null); setNpNombre(''); setNpPv(''); setNpCosto(''); setNpStock('0'); load()
+    await supabase.from('productos').insert({
+      nombre:npNombre,categoria:npCat as Producto['categoria'],precio_venta:pv,costo,
+      stock_kg:parseFloat(npStock)||0,vida_util_dias:parseInt(npVida)||90,instrucciones:npInst,
+      activo:true,unidad_venta:npUnidad,congelado:npCongelado,
+      cod_interno:npCodInterno||null,codigo_ean:npEan||null,rnpa:npRnpa||null
+    } as any)
+    setModal(null); setNpNombre(''); setNpPv(''); setNpCosto(''); setNpStock('0')
+    setNpCodInterno(''); setNpEan(''); setNpRnpa(''); setNpCongelado(false); setNpInst('')
+    load()
   }
 
   function abrirStock(p:Producto) { setStockProd(p); setStkVal(''); setStkMotivo(''); setStkTipo('set'); setModal('stock') }
+
+  function abrirEditar(p:Producto) { setEditProd({...p}); setModal('editar') }
+
+  async function guardarEdicion() {
+    if(!editProd) return
+    setGuardandoEdit(true)
+    try {
+      const { id, ...resto } = editProd as any
+      await supabase.from('productos').update({
+        nombre: resto.nombre,
+        categoria: resto.categoria,
+        precio_venta: resto.precio_venta,
+        costo: resto.costo,
+        unidad_venta: resto.unidad_venta,
+        congelado: resto.congelado,
+        vida_util_dias: resto.vida_util_dias,
+        instrucciones: resto.instrucciones || null,
+        cod_interno: resto.cod_interno || null,
+        codigo_ean: resto.codigo_ean || null,
+        rnpa: resto.rnpa || null,
+        peso: resto.peso || null,
+        porciones: resto.porciones || null,
+        ingredientes: resto.ingredientes || null,
+        informacion_nutricional: resto.informacion_nutricional || null,
+        maridaje: resto.maridaje || null,
+        video_url: resto.video_url || null,
+      } as any).eq('id', id)
+      setModal(null); setEditProd(null); load()
+    } catch (e) { alert('Error al guardar los cambios') }
+    setGuardandoEdit(false)
+  }
 
   async function confirmarStock() {
     if(!stockProd) return
@@ -132,7 +174,10 @@ export function ProductosClient() {
               <div><div style={{color:'var(--muted)',fontSize:10}}>FC</div><div style={{color:fc<=0.45?'#1a7a40':fc<=0.60?'#9a7a1a':'#aa2020'}}>{(fc*100).toFixed(0)}%</div></div>
               <div><div style={{color:'var(--muted)',fontSize:10}}>Stock</div><div style={{color:stk<2?'#aa2020':stk<5?'#b05010':'#1a7a40'}}>{fmtN(stk)} kg</div></div>
             </div>
-            <button onClick={()=>abrirStock(p)} style={{...b(),width:'100%'}}>📦 Ajustar stock</button>
+            <div style={{display:'flex',gap:6}}>
+              <button onClick={()=>abrirStock(p)} style={{...b(),flex:1}}>📦 Stock</button>
+              <button onClick={()=>abrirEditar(p)} style={{...b(),flex:1}}>✏️ Editar</button>
+            </div>
           </div>
         })}
       </div>
@@ -161,6 +206,7 @@ export function ProductosClient() {
                 <td style={{padding:'8px 10px',borderBottom:'1px solid var(--borderl)'}}>
                   <div style={{display:'flex',gap:4,alignItems:'center'}}>
                     <button onClick={()=>abrirStock(p)} style={{...b(),padding:'4px 8px',fontSize:11}}>📦 Stock</button>
+                    <button onClick={()=>abrirEditar(p)} style={{...b(),padding:'4px 8px',fontSize:11}}>✏️ Editar</button>
                     <button title={(p as any).congelado ? 'Congelado — click para quitar' : 'No congelado — click para marcar'}
                       onClick={async()=>{ await supabase.from('productos').update({congelado:!(p as any).congelado}).eq('id',p.id); load() }}
                       style={{padding:'4px 7px',borderRadius:6,border:(p as any).congelado?'1px solid #2C5F2E':'1px solid var(--border)',background:(p as any).congelado?'rgba(44,95,46,.1)':'var(--card)',cursor:'pointer',fontSize:12}}>
@@ -185,13 +231,13 @@ export function ProductosClient() {
               <div><label style={lbl}>PV ($/kg)</label><input type="number" value={npPv} onChange={e=>setNpPv(e.target.value)} /></div>
               <div><label style={lbl}>Costo ($/kg)</label><input type="number" value={npCosto} onChange={e=>setNpCosto(e.target.value)} /></div>
               <div><label style={lbl}>Código interno</label>
-                <input value={(editProd as any)?.cod_interno||''} onChange={e => setEditProd(prev => prev ? { ...prev, cod_interno: e.target.value } : prev)} placeholder="LEM-001" />
+                <input value={npCodInterno} onChange={e => setNpCodInterno(e.target.value)} placeholder="LEM-001" />
               </div>
               <div><label style={lbl}>EAN-13</label>
-                <input value={(editProd as any)?.codigo_ean||''} onChange={e => setEditProd(prev => prev ? { ...prev, codigo_ean: e.target.value } : prev)} placeholder="7790001000019" maxLength={13} style={{fontFamily:'monospace'}} />
+                <input value={npEan} onChange={e => setNpEan(e.target.value)} placeholder="7790001000019" maxLength={13} style={{fontFamily:'monospace'}} />
               </div>
               <div><label style={lbl}>RNPA (elaborados)</label>
-                <input value={(editProd as any)?.rnpa||''} onChange={e => setEditProd(prev => prev ? { ...prev, rnpa: e.target.value } : prev)} placeholder="Registro ANMAT" />
+                <input value={npRnpa} onChange={e => setNpRnpa(e.target.value)} placeholder="Registro ANMAT" />
               </div>
               <div style={{display:'flex',alignItems:'center',gap:8,paddingTop:4}}>
                 <input type="checkbox" id="chk-cong-np" checked={npCongelado} onChange={e => setNpCongelado(e.target.checked)} />
@@ -209,6 +255,76 @@ export function ProductosClient() {
             </div>
             <div style={{marginBottom:12}}><label style={lbl}>Instrucciones</label><input value={npInst} onChange={e=>setNpInst(e.target.value)} /></div>
             <div style={{display:'flex',gap:8}}><button onClick={()=>setModal(null)} style={{...b(),flex:1}}>Cancelar</button><button onClick={guardarNuevo} style={{...b('gold'),flex:1}}>Guardar</button></div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar (incluye ficha completa para la tienda web) */}
+      {modal==='editar' && editProd && (
+        <div style={overlay} onClick={e=>{if(e.target===e.currentTarget){setModal(null);setEditProd(null)}}}>
+          <div style={mbox}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:16}}>
+              <div style={{fontSize:13,letterSpacing:1,color:'var(--gold)',textTransform:'uppercase'}}>Editar Producto</div>
+              <button onClick={()=>{setModal(null);setEditProd(null)}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',fontSize:20}}>✕</button>
+            </div>
+
+            <div className="pg" style={{marginBottom:10}}>
+              <div><label style={lbl}>Nombre</label><input value={editProd.nombre} onChange={e=>setEditProd(prev=>prev?{...prev,nombre:e.target.value}:prev)} /></div>
+              <div><label style={lbl}>Categoría</label>
+                <select value={editProd.categoria} onChange={e=>setEditProd(prev=>prev?{...prev,categoria:e.target.value as Producto['categoria']}:prev)}>
+                  {CATS.map(c=><option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div><label style={lbl}>PV ($/{editProd.unidad_venta||'kg'})</label><input type="number" value={editProd.precio_venta} onChange={e=>setEditProd(prev=>prev?{...prev,precio_venta:parseFloat(e.target.value)||0}:prev)} /></div>
+              <div><label style={lbl}>Costo ($/{editProd.unidad_venta||'kg'})</label><input type="number" value={editProd.costo} onChange={e=>setEditProd(prev=>prev?{...prev,costo:parseFloat(e.target.value)||0}:prev)} /></div>
+              <div><label style={lbl}>Unidad de venta</label>
+                <select value={editProd.unidad_venta||'kg'} onChange={e=>setEditProd(prev=>prev?{...prev,unidad_venta:e.target.value as Producto['unidad_venta']}:prev)}>
+                  <option value="kg">kg (por peso)</option>
+                  <option value="u">u (por unidad)</option>
+                  <option value="L">L (por litro)</option>
+                </select>
+              </div>
+              <div><label style={lbl}>Vida útil (días)</label><input type="number" value={editProd.vida_util_dias||0} onChange={e=>setEditProd(prev=>prev?{...prev,vida_util_dias:parseInt(e.target.value)||0}:prev)} /></div>
+              <div><label style={lbl}>Código interno</label><input value={(editProd as any).cod_interno||''} onChange={e=>setEditProd(prev=>prev?{...prev,cod_interno:e.target.value} as any:prev)} placeholder="LEM-001" /></div>
+              <div><label style={lbl}>EAN-13</label><input value={(editProd as any).codigo_ean||''} onChange={e=>setEditProd(prev=>prev?{...prev,codigo_ean:e.target.value} as any:prev)} placeholder="7790001000019" maxLength={13} style={{fontFamily:'monospace'}} /></div>
+              <div><label style={lbl}>RNPA (elaborados)</label><input value={(editProd as any).rnpa||''} onChange={e=>setEditProd(prev=>prev?{...prev,rnpa:e.target.value} as any:prev)} placeholder="Registro ANMAT" /></div>
+              <div style={{display:'flex',alignItems:'center',gap:8,paddingTop:4}}>
+                <input type="checkbox" id="chk-cong-edit" checked={!!(editProd as any).congelado} onChange={e=>setEditProd(prev=>prev?{...prev,congelado:e.target.checked} as any:prev)} />
+                <label htmlFor="chk-cong-edit" style={{fontSize:12,color:'var(--text)',cursor:'pointer'}}>❄ Producto congelado</label>
+              </div>
+            </div>
+
+            <div style={{marginBottom:12}}><label style={lbl}>Instrucciones (modo de preparación — se muestra en la tienda)</label>
+              <textarea value={editProd.instrucciones||''} onChange={e=>setEditProd(prev=>prev?{...prev,instrucciones:e.target.value}:prev)} rows={2} style={{width:'100%',resize:'vertical'}} />
+            </div>
+
+            <div style={{margin:'18px 0 10px',paddingTop:12,borderTop:'1px solid var(--border)',fontSize:12,letterSpacing:1,color:'var(--gold)',textTransform:'uppercase'}}>Ficha del producto (tienda web)</div>
+
+            <div className="pg" style={{marginBottom:10}}>
+              <div><label style={lbl}>Peso</label><input value={(editProd as any).peso||''} onChange={e=>setEditProd(prev=>prev?{...prev,peso:e.target.value} as any:prev)} placeholder="ej: 500 g" /></div>
+              <div><label style={lbl}>Porciones</label><input value={(editProd as any).porciones||''} onChange={e=>setEditProd(prev=>prev?{...prev,porciones:e.target.value} as any:prev)} placeholder="ej: 2 porciones" /></div>
+            </div>
+
+            <div style={{marginBottom:10}}><label style={lbl}>Ingredientes</label>
+              <textarea value={(editProd as any).ingredientes||''} onChange={e=>setEditProd(prev=>prev?{...prev,ingredientes:e.target.value} as any:prev)} rows={2} style={{width:'100%',resize:'vertical'}} placeholder="ej: Pechuga de pollo, pan rallado, huevo, condimentos." />
+            </div>
+
+            <div style={{marginBottom:10}}><label style={lbl}>Información nutricional</label>
+              <textarea value={(editProd as any).informacion_nutricional||''} onChange={e=>setEditProd(prev=>prev?{...prev,informacion_nutricional:e.target.value} as any:prev)} rows={2} style={{width:'100%',resize:'vertical'}} placeholder="ej: 250 kcal por porción." />
+            </div>
+
+            <div style={{marginBottom:10}}><label style={lbl}>Maridaje / con qué se sirve</label>
+              <input value={(editProd as any).maridaje||''} onChange={e=>setEditProd(prev=>prev?{...prev,maridaje:e.target.value} as any:prev)} placeholder="ej: Puré de papas o ensalada fresca." />
+            </div>
+
+            <div style={{marginBottom:16}}><label style={lbl}>Video de preparación (link de YouTube)</label>
+              <input value={(editProd as any).video_url||''} onChange={e=>setEditProd(prev=>prev?{...prev,video_url:e.target.value} as any:prev)} placeholder="https://www.youtube.com/watch?v=..." />
+            </div>
+
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>{setModal(null);setEditProd(null)}} style={{...b(),flex:1}}>Cancelar</button>
+              <button onClick={guardarEdicion} disabled={guardandoEdit} style={{...b('gold'),flex:1,opacity:guardandoEdit?0.6:1}}>{guardandoEdit?'Guardando...':'Guardar cambios'}</button>
+            </div>
           </div>
         </div>
       )}
