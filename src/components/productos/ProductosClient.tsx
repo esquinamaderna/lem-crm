@@ -31,6 +31,8 @@ export function ProductosClient() {
   // Ficha completa del producto (para la web de la tienda)
   const [editProd, setEditProd] = useState<Producto|null>(null)
   const [guardandoEdit, setGuardandoEdit] = useState(false)
+  const [editImgs, setEditImgs] = useState<{id:number,url:string,orden:number}[]>([])
+  const [subiendoImg, setSubiendoImg] = useState(false)
 
   useEffect(()=>{load()},[])
   async function load() {
@@ -82,7 +84,41 @@ export function ProductosClient() {
 
   function abrirStock(p:Producto) { setStockProd(p); setStkVal(''); setStkMotivo(''); setStkTipo('set'); setModal('stock') }
 
-  function abrirEditar(p:Producto) { setEditProd({...p}); setModal('editar') }
+  async function abrirEditar(p:Producto) {
+    setEditProd({...p}); setModal('editar'); setEditImgs([])
+    const { data } = await supabase.from('producto_imagenes' as any).select('id,url,orden').eq('producto_id', p.id).order('orden')
+    setEditImgs((data as any) || [])
+  }
+
+  async function subirImagen(file: File) {
+    if (!editProd) return
+    setSubiendoImg(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `${editProd.id}/${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('producto-fotos').upload(path, file)
+      if (upErr) { alert('Error al subir la imagen: ' + upErr.message); setSubiendoImg(false); return }
+      const { data: pub } = supabase.storage.from('producto-fotos').getPublicUrl(path)
+      const nuevoOrden = editImgs.length ? Math.max(...editImgs.map(i=>i.orden)) + 1 : 0
+      const { data: row, error: insErr } = await supabase.from('producto_imagenes' as any)
+        .insert({ producto_id: editProd.id, url: pub.publicUrl, orden: nuevoOrden }).select().single()
+      if (insErr) { alert('Error al guardar la imagen: ' + insErr.message); setSubiendoImg(false); return }
+      setEditImgs(prev => [...prev, row as any])
+    } catch (e) { alert('Error al subir la imagen') }
+    setSubiendoImg(false)
+  }
+
+  async function borrarImagen(img: {id:number,url:string}) {
+    if (!confirm('¿Borrar esta foto?')) return
+    const marker = '/producto-fotos/'
+    const idx = img.url.indexOf(marker)
+    if (idx !== -1) {
+      const path = img.url.substring(idx + marker.length)
+      await supabase.storage.from('producto-fotos').remove([path])
+    }
+    await supabase.from('producto_imagenes' as any).delete().eq('id', img.id)
+    setEditImgs(prev => prev.filter(i => i.id !== img.id))
+  }
 
   async function guardarEdicion() {
     if(!editProd) return
@@ -297,6 +333,23 @@ export function ProductosClient() {
             <div style={{marginBottom:12}}><label style={lbl}>Instrucciones (modo de preparación — se muestra en la tienda)</label>
               <textarea value={editProd.instrucciones||''} onChange={e=>setEditProd(prev=>prev?{...prev,instrucciones:e.target.value}:prev)} rows={2} style={{width:'100%',resize:'vertical'}} />
             </div>
+
+            <div style={{margin:'18px 0 10px',paddingTop:12,borderTop:'1px solid var(--border)',fontSize:12,letterSpacing:1,color:'var(--gold)',textTransform:'uppercase'}}>Fotos del producto</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:6}}>
+              {editImgs.map(img => (
+                <div key={img.id} style={{position:'relative',width:80,height:80}}>
+                  <img src={img.url} alt="" style={{width:80,height:80,objectFit:'cover',borderRadius:6,border:'1px solid var(--border)'}} />
+                  <button onClick={()=>borrarImagen(img)} title="Borrar foto"
+                    style={{position:'absolute',top:-6,right:-6,width:20,height:20,borderRadius:'50%',background:'#aa2020',color:'#fff',border:'none',cursor:'pointer',fontSize:12,lineHeight:'20px',padding:0}}>✕</button>
+                </div>
+              ))}
+              <label style={{width:80,height:80,display:'flex',alignItems:'center',justifyContent:'center',border:'1px dashed var(--border)',borderRadius:6,cursor:subiendoImg?'default':'pointer',fontSize:11,color:'var(--muted)',textAlign:'center',flexDirection:'column',gap:4}}>
+                {subiendoImg ? 'Subiendo...' : '+ Foto'}
+                <input type="file" accept="image/*" style={{display:'none'}} disabled={subiendoImg}
+                  onChange={e=>{ const f=e.target.files?.[0]; if(f) subirImagen(f); e.target.value='' }} />
+              </label>
+            </div>
+            <div style={{fontSize:11,color:'var(--muted)',marginBottom:12}}>La primera foto es la principal en la ficha del producto. Podés subir varias.</div>
 
             <div style={{margin:'18px 0 10px',paddingTop:12,borderTop:'1px solid var(--border)',fontSize:12,letterSpacing:1,color:'var(--gold)',textTransform:'uppercase'}}>Ficha del producto (tienda web)</div>
 
