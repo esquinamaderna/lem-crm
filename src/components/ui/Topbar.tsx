@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 
 const NAV_TRANSACCIONES = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -27,8 +28,14 @@ const ALL_NAV = [...NAV_TRANSACCIONES, ...NAV_OPERACIONES]
 
 export function Topbar() {
   const path = usePathname()
+  const router = useRouter()
   const [clock, setClock] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.replace('/login')
+  }
 
   useEffect(() => {
     const tick = () => {
@@ -94,6 +101,11 @@ export function Topbar() {
           {clock}
         </div>
 
+        <button onClick={handleLogout} className="desktop-logout" title="Cerrar sesión"
+          style={{ background: 'none', border: '1px solid #444', color: '#9e9890', borderRadius: 4, padding: '5px 10px', fontSize: 11, cursor: 'pointer', fontFamily: 'Georgia, serif', flexShrink: 0 }}>
+          Salir
+        </button>
+
         {/* Mobile: section label */}
         <div className="mobile-label" style={{ flex: 1, textAlign: 'center', fontSize: 12, color: '#c9a227', textTransform: 'uppercase', letterSpacing: 1 }}>
           {activeLabel}
@@ -137,6 +149,9 @@ export function Topbar() {
                 )
               })}
             </div>
+            <button onClick={handleLogout} style={{ width: '100%', marginTop: 10, padding: '9px 12px', borderRadius: 6, border: '1px solid #444', background: 'none', color: '#9e9890', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia,serif' }}>
+              Cerrar sesión
+            </button>
             <div style={{ fontSize: 11, color: '#555', textAlign: 'center', paddingTop: 8, borderTop: '1px solid #2a2520' }}>{clock}</div>
           </div>
         </>
@@ -146,6 +161,7 @@ export function Topbar() {
         .logo-short { display: none; }
         .desktop-nav { display: flex !important; }
         .desktop-clock { display: block !important; }
+        .desktop-logout { display: inline-block !important; }
         .mobile-label { display: none !important; }
         .hamburger { display: none !important; }
         @media (max-width: 1100px) {
@@ -155,6 +171,7 @@ export function Topbar() {
         @media (max-width: 1024px) {
           .desktop-nav { display: none !important; }
           .desktop-clock { display: none !important; }
+          .desktop-logout { display: none !important; }
           .mobile-label { display: block !important; }
           .hamburger { display: flex !important; }
         }
