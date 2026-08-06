@@ -20,6 +20,7 @@ interface Combo {
   descuento_pct: number
   activo: boolean
   color: string
+  imagen_url?: string | null
   combo_items?: ComboItem[]
 }
 
@@ -56,6 +57,8 @@ export function CombosClient() {
   const [fItems, setFItems] = useState<ComboItem[]>([])
   const [fProdSel, setFProdSel] = useState('')
   const [fCantidad, setFCantidad] = useState(0.25)
+  const [fImagenUrl, setFImagenUrl] = useState('')
+  const [subiendoImg, setSubiendoImg] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -79,6 +82,7 @@ export function CombosClient() {
     setEditando(null)
     setFNombre(''); setFDesc(''); setFDescPct(12); setFPrecioManual('')
     setFColor('#3266ad'); setFItems([]); setFProdSel(''); setFCantidad(0.25)
+    setFImagenUrl('')
     setModal('nuevo')
   }
 
@@ -93,7 +97,39 @@ export function CombosClient() {
       cantidad_kg: i.cantidad_kg,
       precio_unit: (productos.find(p => p.id === i.producto_id) as any)?.precio_venta || 0,
     })))
+    setFImagenUrl(c.imagen_url || '')
     setModal('editar')
+  }
+
+  async function subirImagenCombo(file: File) {
+    if (!editando) return
+    setSubiendoImg(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `${editando.id}/${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('combo-fotos').upload(path, file)
+      if (upErr) { alert('Error al subir la imagen: ' + upErr.message); setSubiendoImg(false); return }
+      const { data: pub } = supabase.storage.from('combo-fotos').getPublicUrl(path)
+      const { error: updErr } = await supabase.from('combos').update({ imagen_url: pub.publicUrl }).eq('id', editando.id)
+      if (updErr) { alert('Error al guardar la imagen: ' + updErr.message); setSubiendoImg(false); return }
+      setFImagenUrl(pub.publicUrl)
+      load()
+    } catch (e) { alert('Error al subir la imagen') }
+    setSubiendoImg(false)
+  }
+
+  async function borrarImagenCombo() {
+    if (!editando || !fImagenUrl) return
+    if (!confirm('¿Quitar la imagen de este combo?')) return
+    const marker = '/combo-fotos/'
+    const idx = fImagenUrl.indexOf(marker)
+    if (idx !== -1) {
+      const path = fImagenUrl.substring(idx + marker.length)
+      await supabase.storage.from('combo-fotos').remove([path])
+    }
+    await supabase.from('combos').update({ imagen_url: null }).eq('id', editando.id)
+    setFImagenUrl('')
+    load()
   }
 
   function addItem() {
@@ -153,7 +189,10 @@ export function CombosClient() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 12 }}>
         {combos.map(c => (
           <div key={c.id} style={{ background: 'var(--card)', border: `1px solid var(--border)`, borderRadius: 8, padding: 16, boxShadow: 'var(--shadow)', opacity: c.activo ? 1 : 0.55, borderTop: `3px solid ${c.color || '#7f77dd'}` }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 10 }}>
+              {c.imagen_url && (
+                <img src={c.imagen_url} alt="" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)', flexShrink: 0 }} />
+              )}
               <div style={{ fontSize: 13, fontWeight: 'bold', flex: 1, paddingRight: 8 }}>{c.nombre}</div>
               <div style={{ fontSize: 18, color: c.color || 'var(--gold)', fontWeight: 'bold', flexShrink: 0 }}>{fmt(c.precio)}</div>
             </div>
@@ -223,6 +262,40 @@ export function CombosClient() {
                     style={{ width: 32, height: 32, borderRadius: 6, background: col.val, border: fColor === col.val ? '3px solid var(--text)' : '2px solid transparent', cursor: 'pointer', title: col.label }} />
                 ))}
               </div>
+            </div>
+
+            {/* Imagen de referencia */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={lbl}>Imagen de referencia</label>
+              {!editando ? (
+                <div style={{ fontSize: 11, color: 'var(--dim)', padding: 10, background: 'var(--bg)', borderRadius: 6 }}>
+                  Creá el combo primero; después podés volver a editarlo para subirle una foto.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {fImagenUrl ? (
+                    <div style={{ position: 'relative', width: 80, height: 80 }}>
+                      <img src={fImagenUrl} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
+                      <button onClick={borrarImagenCombo} title="Quitar imagen"
+                        style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#aa2020', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: '20px', padding: 0 }}>✕</button>
+                    </div>
+                  ) : (
+                    <label style={{ width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border)', borderRadius: 6, cursor: subiendoImg ? 'default' : 'pointer', fontSize: 11, color: 'var(--muted)', textAlign: 'center', flexDirection: 'column', gap: 4 }}>
+                      {subiendoImg ? 'Subiendo...' : '+ Foto'}
+                      <input type="file" accept="image/*" style={{ display: 'none' }} disabled={subiendoImg}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) subirImagenCombo(f); e.target.value = '' }} />
+                    </label>
+                  )}
+                  {fImagenUrl && (
+                    <label style={{ ...b(), padding: '6px 12px', fontSize: 11, cursor: subiendoImg ? 'default' : 'pointer' }}>
+                      {subiendoImg ? 'Subiendo...' : 'Cambiar imagen'}
+                      <input type="file" accept="image/*" style={{ display: 'none' }} disabled={subiendoImg}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) subirImagenCombo(f); e.target.value = '' }} />
+                    </label>
+                  )}
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Se muestra en la tarjeta del combo en la tienda.</div>
             </div>
 
             {/* Componentes */}
