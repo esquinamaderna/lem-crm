@@ -276,3 +276,8 @@ INSERT INTO box_productos (id, nombre, marca, presentacion, costo, grupo, famili
 ('N011','Confites de maní','Georgalos','80 g',999.9,'C','confites',ARRAY['Navideña']::text[],'Referencia histórica 2025','historical','Precio final de oferta navideña 2025, sin descontar vouchers ni medios de pago. Oferta vencida; validar antes de comprar.','Oferta 29/12/2025 · consultada 25/09/2026','https://maxiconsumo.com/media/pdf_files/r/e/revista_n_979_29-12-2025_final_6.pdf'),
 ('N012','Crocante','Bariloche','100 g',999.9,'C','crocante',ARRAY['Navideña']::text[],'Referencia histórica 2025','historical','Precio final de oferta navideña 2025, sin descontar vouchers ni medios de pago. Oferta vencida; validar antes de comprar.','Oferta 29/12/2025 · consultada 25/09/2026','https://maxiconsumo.com/media/pdf_files/r/e/revista_n_979_29-12-2025_final_6.pdf')
 ON CONFLICT (id) DO NOTHING;
+
+-- ── v2: boxes en Venta + fix venta_items ──
+ALTER TABLE boxes_armados ADD COLUMN IF NOT EXISTS en_venta boolean NOT NULL DEFAULT true;
+ALTER TABLE venta_items ADD COLUMN IF NOT EXISTS descuento_monto numeric DEFAULT 0;
+ALTER TABLE venta_items ADD COLUMN IF NOT EXISTS precio_final numeric;

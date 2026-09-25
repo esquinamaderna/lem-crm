@@ -19,6 +19,24 @@ export interface BoxProducto {
   precio_fecha: string | null
   precio_fuente: string | null
   activo: boolean
+  // Presente cuando el ítem es un producto del CRM (tabla productos)
+  lem?: { producto_id: number; cantidad: number; unidad: string; precio_venta: number }
+}
+
+// Producto del CRM (tabla productos) disponible para sumar a un box
+export interface LemProducto {
+  id: number; nombre: string; categoria: string; costo: number | null; precio_venta: number
+  unidad_venta: string | null; stock_kg: number | null
+}
+
+export function lemToBox(p: LemProducto, cantidad: number, grupo: Grupo, tipo: string): BoxProducto {
+  const unidad = p.unidad_venta || 'kg'
+  return {
+    id: 'L' + p.id, nombre: p.nombre, marca: p.categoria, presentacion: `${cantidad.toLocaleString('es-AR')} ${unidad}`,
+    costo: Math.round((Number(p.costo) || 0) * cantidad * 100) / 100, grupo, familia: 'lem:' + p.id, tipos: [tipo],
+    estado: 'Producto LEM', precio_tipo: 'manual', precio_nota: null, precio_fecha: null, precio_fuente: null, activo: true,
+    lem: { producto_id: p.id, cantidad, unidad, precio_venta: Number(p.precio_venta) || 0 },
+  }
 }
 
 export interface BoxTamano { tamano: number; precio: number; grupos: Grupo[]; objetivo: number }

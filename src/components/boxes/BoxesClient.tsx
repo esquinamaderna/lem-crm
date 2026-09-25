@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import {
   type BoxProducto, type BoxTamano, type BoxTipo, type BoxOcasion, type Grupo,
   NAVIDENA, OCASIONES_NAVIDAD, key, pool, priced, minimum, generate, metrics, slotAllowed, cents,
+  type LemProducto, lemToBox,
 } from '@/lib/box-engine'
 import seed from '@/lib/box-seed.json'
 
@@ -54,7 +55,8 @@ function Modal({ open, onClose, title, sub, children, wide }: { open: boolean; o
 type Tab = 'armador' | 'catalogo' | 'guardados' | 'ajustes'
 interface Armado {
   id: number; nombre: string; tipo: string; ocasion: string | null; tamano: number; precio: number
-  items: { id: string; nombre: string; marca: string | null; presentacion: string | null; costo: number; grupo: string }[]
+  items: { id: string; nombre: string; marca: string | null; presentacion: string | null; costo: number; grupo: string; origen?: 'box' | 'lem'; producto_id?: number | null; cantidad?: number; unidad?: string }[]
+  en_venta?: boolean
   costo_mercaderia: number; packaging: number; comision: number; margen: number | null; notas: string | null; created_at: string
 }
 
@@ -69,6 +71,7 @@ export function BoxesClient() {
   const [packaging, setPackaging] = useState(500)
   const [comision, setComision] = useState(4)
   const [armados, setArmados] = useState<Armado[]>([])
+  const [lem, setLem] = useState<LemProducto[]>([])
   const [toast, setToast] = useState('')
 
   function avisar(t: string) { setToast(t); setTimeout(() => setToast(''), 4000) }
@@ -87,13 +90,14 @@ export function BoxesClient() {
       const { count: co } = await db.from('box_ocasiones').select('id', { count: 'exact', head: true })
       if (co === 0) await db.from('box_ocasiones').upsert(seed.ocasiones, { onConflict: 'id', ignoreDuplicates: true })
 
-      const [p, t, o, s, a, g] = await Promise.all([
+      const [p, t, o, s, a, g, l] = await Promise.all([
         db.from('box_productos').select('*').order('id'),
         db.from('box_tipos').select('*').order('orden'),
         db.from('box_ocasiones').select('*').order('orden'),
         db.from('box_tamanos').select('*').order('tamano'),
         db.from('box_ajustes').select('*').eq('id', 1).maybeSingle(),
         db.from('boxes_armados').select('*').order('created_at', { ascending: false }),
+        db.from('productos').select('id,nombre,categoria,costo,precio_venta,unidad_venta,stock_kg').eq('activo', true).order('nombre'),
       ])
       if (p.error) throw p.error
       setProductos((p.data || []).map((x: any) => ({ ...x, activo: x.activo !== false, costo: x.costo === null ? null : Number(x.costo) })))
@@ -102,6 +106,7 @@ export function BoxesClient() {
       setTamanos((s.data || []).map((x: any) => ({ ...x, precio: Number(x.precio), objetivo: Number(x.objetivo) })))
       if (a.data) { setPackaging(Number(a.data.packaging)); setComision(Number(a.data.comision_pct)) }
       setArmados(g.data || [])
+      setLem(l.data || [])
     } catch (e: any) {
       setError(e?.message || 'No se pudo cargar. ¿Corriste supabase/add-boxes.sql?')
     }
@@ -134,7 +139,7 @@ export function BoxesClient() {
       {cargando ? <div style={{ ...card, color: 'var(--muted)' }}>Cargando boxes…</div>
         : error ? <div style={{ ...card, color: '#aa2020' }}>{error}</div>
         : tab === 'armador' && !tamanos.length ? <div style={card}>Faltan tamaños de box. Cargalos en Ajustes.</div>
-        : tab === 'armador' ? <Armador {...{ productos, tipos, ocasiones, tamanos, packaging, comision, avisar }} onSaved={a => { setArmados(x => [a, ...x]); }} />
+        : tab === 'armador' ? <Armador {...{ productos, lem, tipos, ocasiones, tamanos, packaging, comision, avisar }} onSaved={a => { setArmados(x => [a, ...x]); }} />
         : tab === 'catalogo' ? <Catalogo {...{ productos, setProductos, tipos, avisar }} />
         : tab === 'guardados' ? <Guardados {...{ armados, setArmados, avisar }} />
         : <Ajustes {...{ tamanos, setTamanos, packaging, setPackaging, comision, setComision, avisar }} />}
@@ -159,8 +164,8 @@ export function BoxesClient() {
 // ══════════════════════════════════════════════════════════════════
 // ARMADOR
 // ══════════════════════════════════════════════════════════════════
-function Armador({ productos, tipos, ocasiones, tamanos, packaging, comision, avisar, onSaved }: {
-  productos: BoxProducto[]; tipos: BoxTipo[]; ocasiones: BoxOcasion[]; tamanos: BoxTamano[]
+function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comision, avisar, onSaved }: {
+  productos: BoxProducto[]; lem: LemProducto[]; tipos: BoxTipo[]; ocasiones: BoxOcasion[]; tamanos: BoxTamano[]
   packaging: number; comision: number; avisar: (t: string) => void; onSaved: (a: Armado) => void
 }) {
   const [ocasion, setOcasion] = useState('')
@@ -171,6 +176,9 @@ function Armador({ productos, tipos, ocasiones, tamanos, packaging, comision, av
   const [modal, setModal] = useState<'tipos' | 'ocasiones' | 'picker' | 'guardar' | null>(null)
   const [slot, setSlot] = useState(0)
   const [q, setQ] = useState('')
+  const [fuente, setFuente] = useState<'box' | 'lem'>('box')
+  const [lemSel, setLemSel] = useState<LemProducto | null>(null)
+  const [lemCant, setLemCant] = useState('1')
   const [fNombre, setFNombre] = useState('')
   const [fNotas, setFNotas] = useState('')
   const [guardando, setGuardando] = useState(false)
@@ -208,7 +216,13 @@ function Armador({ productos, tipos, ocasiones, tamanos, packaging, comision, av
     avisar(r.over ? 'Se armó la combinación más económica. Revisá el exceso de costo.' : 'Box armado. Podés cambiar cualquier producto.')
   }
 
-  function abrirPicker(i: number) { setSlot(i); setQ(''); setModal('picker') }
+  function abrirPicker(i: number) { setSlot(i); setQ(''); setLemSel(null); setModal('picker') }
+  function elegirLem(p: LemProducto) { setLemSel(p); setLemCant((p.unidad_venta || 'kg') === 'kg' ? '0.5' : '1') }
+  function confirmarLem() {
+    const c = Number(lemCant)
+    if (!lemSel || !(c > 0)) { avisar('Ingresá una cantidad válida.'); return }
+    pick(lemToBox(lemSel, c, rule.grupos[slot], tipo)); setLemSel(null)
+  }
   function pick(p: BoxProducto) { setItems(prev => prev.map((x, i) => i === slot ? p : x)); setModal(null) }
 
   const pickerList = useMemo(() => {
@@ -219,6 +233,11 @@ function Armador({ productos, tipos, ocasiones, tamanos, packaging, comision, av
       .sort((a, c) => (+!priced(a)) - (+!priced(c)) || (a.costo ?? 0) - (c.costo ?? 0))
   }, [modal, slot, q, productos, tipo, rule])
   const usedKeys = new Set(items.filter((p, i) => p && i !== slot).map(p => key(p!)))
+  const lemList = useMemo(() => {
+    if (modal !== 'picker' || fuente !== 'lem') return []
+    const qq = norm(q)
+    return lem.filter(p => norm([p.nombre, p.categoria].join(' ')).includes(qq)).slice(0, 120)
+  }, [modal, fuente, q, lem])
 
   async function guardar() {
     if (!m.complete) return
@@ -226,7 +245,8 @@ function Armador({ productos, tipos, ocasiones, tamanos, packaging, comision, av
     const row = {
       nombre: fNombre.trim() || (occ ? `Caja ${occ.nombre}` : `Box ${tipo}`) + ` ${whole(rule.precio)}`,
       tipo, ocasion: ocasion || null, tamano: rule.tamano, precio: rule.precio,
-      items: items.map(p => ({ id: p!.id, nombre: p!.nombre, marca: p!.marca, presentacion: p!.presentacion, costo: p!.costo, grupo: p!.grupo })),
+      items: items.map(p => ({ id: p!.id, nombre: p!.nombre, marca: p!.marca, presentacion: p!.presentacion, costo: p!.costo, grupo: p!.grupo,
+        origen: p!.lem ? 'lem' : 'box', producto_id: p!.lem?.producto_id ?? null, cantidad: p!.lem?.cantidad ?? 1, unidad: p!.lem?.unidad ?? 'u' })),
       costo_mercaderia: m.cost, packaging, comision: m.fee, margen: m.margin, notas: fNotas.trim() || null,
     }
     const { data, error } = await (supabase as any).from('boxes_armados').insert(row).select().single()
@@ -433,7 +453,48 @@ function Armador({ productos, tipos, ocasiones, tamanos, packaging, comision, av
 
       {/* Modal picker */}
       <Modal open={modal === 'picker'} onClose={() => setModal(null)} title="Elegí un producto" sub={`Box ${tipo} · Grupo ${rule.grupos[slot]}`} wide>
-        <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscá por producto, marca o presentación…" style={{ marginBottom: 6 }} />
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+          <button onClick={() => { setFuente('box'); setLemSel(null) }} style={{ ...b(fuente === 'box' ? 'dark' : undefined), flex: 1 }}>Almacén box ({productos.length})</button>
+          {!(tipo === NAVIDENA && slot === 0) && <button onClick={() => setFuente('lem')} style={{ ...b(fuente === 'lem' ? 'dark' : undefined), flex: 1 }}>Productos LEM ({lem.length})</button>}
+        </div>
+        <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder={fuente === 'box' ? 'Buscá por producto, marca o presentación…' : 'Buscá por producto o categoría del CRM…'} style={{ marginBottom: 6 }} />
+        {fuente === 'lem' && !(tipo === NAVIDENA && slot === 0) ? (<>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>Productos cargados en el CRM. Entran en cualquier lugar del box; el costo se calcula por la cantidad que pongas y al vender el box se descuenta del stock.</div>
+          {lemSel && (
+            <div style={{ border: '1px solid var(--gold)', background: 'var(--gold-bg)', borderRadius: 8, padding: 12, marginBottom: 12, display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 200px' }}>
+                <div style={{ fontSize: 15 }}>{lemSel.nombre}</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>{lemSel.categoria} · costo {money(Number(lemSel.costo) || 0)}/{lemSel.unidad_venta || 'kg'} · stock {Number(lemSel.stock_kg || 0).toLocaleString('es-AR')} {lemSel.unidad_venta || 'kg'}</div>
+              </div>
+              <div style={{ width: 120 }}>
+                <label style={lbl}>Cantidad ({lemSel.unidad_venta || 'kg'})</label>
+                <input type="number" min={0} step={(lemSel.unidad_venta || 'kg') === 'kg' ? 0.05 : 1} value={lemCant} onChange={e => setLemCant(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') confirmarLem() }} />
+              </div>
+              <div style={{ fontSize: 14, minWidth: 90 }}>{money((Number(lemSel.costo) || 0) * (Number(lemCant) || 0))}</div>
+              <button onClick={confirmarLem} style={b('gold')}>Sumar al box</button>
+            </div>
+          )}
+          <div className="bx-slots">
+            {lemList.map(p => {
+              const dup = usedKeys.has('lem:' + p.id)
+              const u = p.unidad_venta || 'kg'
+              return (
+                <button key={p.id} className="bx-pick" disabled={dup} onClick={() => elegirLem(p)} style={{
+                  textAlign: 'left', padding: 12, borderRadius: 8, border: lemSel?.id === p.id ? '1px solid var(--gold)' : '1px solid var(--border)', background: 'var(--card)',
+                  cursor: dup ? 'not-allowed' : 'pointer', opacity: dup ? .5 : 1, fontFamily: 'Georgia,serif', display: 'flex', flexDirection: 'column', gap: 3, minHeight: 80,
+                }}>
+                  <span style={{ fontSize: 14, color: 'var(--text)' }}>{p.nombre}</span>
+                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>{p.categoria} · stock {Number(p.stock_kg || 0).toLocaleString('es-AR')} {u}</span>
+                  <span style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: 'var(--text)' }}>
+                    {dup ? 'Ya está en tu box' : `Costo ${money(Number(p.costo) || 0)}/${u}`}
+                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>PV {whole(Number(p.precio_venta) || 0)}</span>
+                  </span>
+                </button>
+              )
+            })}
+            {!lemList.length && <p style={{ color: 'var(--muted)', gridColumn: '1/-1', textAlign: 'center', padding: 24 }}>No hay productos del CRM para esta búsqueda.</p>}
+          </div>
+        </>) : (<>
         <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>
           {pickerList.filter(p => priced(p) && !usedKeys.has(key(p))).length} variantes disponibles · {pickerList.filter(p => !priced(p)).length} sin costo
         </div>
@@ -456,6 +517,7 @@ function Armador({ productos, tipos, ocasiones, tamanos, packaging, comision, av
           })}
           {!pickerList.length && <p style={{ color: 'var(--muted)', gridColumn: '1/-1', textAlign: 'center', padding: 24 }}>No hay productos para esta búsqueda.</p>}
         </div>
+        </>)}
       </Modal>
 
       {/* Modal guardar */}
@@ -629,6 +691,14 @@ function Guardados({ armados, setArmados, avisar }: { armados: Armado[]; setArma
     setArmados(prev => prev.filter(x => x.id !== a.id))
   }
 
+  async function toggleVenta(a: Armado) {
+    const v = a.en_venta === false
+    const { error } = await (supabase as any).from('boxes_armados').update({ en_venta: v }).eq('id', a.id)
+    if (error) { avisar('Error: ' + error.message); return }
+    setArmados(prev => prev.map(x => x.id === a.id ? { ...x, en_venta: v } : x))
+    avisar(v ? 'El box ya aparece en Venta.' : 'Box pausado: no aparece en Venta.')
+  }
+
   function copiar(a: Armado) {
     const txt = `${a.nombre} — ${whole(a.precio)}\n` + a.items.map(i => `• ${i.nombre} ${i.marca || ''} ${i.presentacion || ''}`.replace(/\s+/g, ' ').trim()).join('\n')
     navigator.clipboard?.writeText(txt).then(() => avisar('Lista copiada para WhatsApp.'))
@@ -647,10 +717,11 @@ function Guardados({ armados, setArmados, avisar }: { armados: Armado[]; setArma
                 <div style={{ fontSize: 15, color: 'var(--text)' }}>{a.nombre}</div>
                 <div style={{ fontSize: 11, color: 'var(--muted)' }}>{a.tipo} · {a.items.length} productos · {new Date(a.created_at).toLocaleDateString('es-AR')}</div>
               </button>
-              <div style={{ display: 'flex', gap: 16, alignItems: 'center', fontSize: 13 }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: 13, flexWrap: 'wrap' }}>
                 <span><span style={{ color: 'var(--muted)', fontSize: 11 }}>Venta </span>{whole(Number(a.precio))}</span>
                 <span><span style={{ color: 'var(--muted)', fontSize: 11 }}>Mercadería </span>{whole(Number(a.costo_mercaderia))}</span>
                 <span style={{ color: margen !== null && margen < .3 ? '#a32e27' : '#1a7a40' }}>{margen === null ? '—' : pct(margen)}</span>
+                <button onClick={() => toggleVenta(a)} title="Mostrar u ocultar en la pantalla de Venta" style={{ ...b(a.en_venta === false ? undefined : 'green'), padding: '4px 9px', fontSize: 11 }}>{a.en_venta === false ? 'Pausado' : '✓ En venta'}</button>
                 <button onClick={() => copiar(a)} style={{ ...b(), padding: '4px 9px', fontSize: 11 }}>Copiar</button>
                 <button onClick={() => borrar(a)} style={{ ...b('red'), padding: '4px 9px', fontSize: 11 }}>Eliminar</button>
               </div>

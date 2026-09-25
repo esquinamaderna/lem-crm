@@ -10,11 +10,17 @@ const CATS = ['Todos', 'VACUNO', 'CERDO', 'POLLO', 'PAPAS', 'JUMBALAY', 'PACKS',
 const PAGOS = ['Efectivo', 'Transferencia', 'Transferencia MP', 'MercadoPago', 'Débito', 'Crédito']
 const btnSm: React.CSSProperties = { padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', cursor: 'pointer', fontSize: 12, fontFamily: 'Georgia,serif' }
 
+interface BoxVenta {
+  id: number; nombre: string; tipo: string; precio: number; notas: string | null
+  items: { nombre: string; marca?: string | null; presentacion?: string | null; origen?: 'box' | 'lem'; producto_id?: number | null; cantidad?: number }[]
+}
+
 function ticketNum(n: number) { return 'T' + String(n).padStart(4, '0') }
 
 export function POSClient() {
   const [productos, setProductos] = useState<Producto[]>([])
   const [combos, setCombos] = useState<Combo[]>([])
+  const [boxes, setBoxes] = useState<BoxVenta[]>([])
   const [cat, setCat] = useState('Todos')
   const [cart, setCart] = useState<CartItem[]>([])
   const [cliente, setCliente] = useState('')
@@ -35,6 +41,8 @@ export function POSClient() {
       })
     supabase.from('combos').select('*, combo_items(*)').eq('activo', true).order('nombre')
       .then(({ data }) => setCombos((data || []) as Combo[]))
+    ;(supabase as any).from('boxes_armados').select('id,nombre,tipo,precio,items,notas').eq('en_venta', true).order('created_at', { ascending: false })
+      .then(({ data }: any) => setBoxes((data || []) as BoxVenta[]))
   }, [])
 
   const [mostrarSinStock, setMostrarSinStock] = useState(false)
@@ -79,6 +87,29 @@ export function POSClient() {
         esCombo: true,
         comboItems: c.combo_items || [],
       } as any]
+    })
+  }
+
+  // Boxes armados: componentes LEM descuentan stock; los de almacén box no llevan stock
+  const boxComps = (b: BoxVenta) => (b.items || []).map(it => ({
+    producto_id: it.origen === 'lem' ? (it.producto_id ?? null) : null,
+    producto_nombre: it.nombre,
+    cantidad_kg: it.origen === 'lem' ? Number(it.cantidad || 0) : 0,
+    label: `${it.nombre}${it.marca ? ' ' + it.marca : ''}${it.presentacion ? ' · ' + it.presentacion : ''}`,
+  }))
+  const boxFaltantes = (b: BoxVenta, qty = 1) => boxComps(b).filter(c => {
+    if (!c.producto_id) return false
+    const prod = productos.find(p => p.id === c.producto_id)
+    return !prod || (prod.stock_kg || 0) < c.cantidad_kg * qty
+  })
+  const addBoxToCart = (b: BoxVenta) => {
+    const cid = -(1000000 + b.id)
+    const ex = cart.find(i => i.id === cid)
+    const falt = boxFaltantes(b, (ex?.qty || 0) + 1)
+    if (falt.length) { alert('Stock insuficiente para:\n' + falt.map(c => c.producto_nombre).join('\n')); return }
+    setCart(prev => {
+      if (ex) return prev.map(i => i.id === cid ? { ...i, qty: i.qty + 1 } : i)
+      return [...prev, { id: cid, nombre: '📦 ' + b.nombre, pv: Number(b.precio), qty: 1, descPct: 0, descMonto: 0, esCombo: true, esBox: true, comboItems: boxComps(b) } as any]
     })
   }
 
@@ -127,10 +158,10 @@ export function POSClient() {
       const comboItems = (i as any).comboItems || []
       if (esCombo) {
         // Ticket: mostrar nombre del combo, componentes y precio
-        const detalle = comboItems.map((ci: any) => `<div style="padding-left:10px;font-size:10px;color:#666">· ${ci.producto_nombre} ${fmtN(ci.cantidad_kg * 1000, 0)}g × ${i.qty}</div>`).join('')
+        const detalle = comboItems.map((ci: any) => `<div style="padding-left:10px;font-size:10px;color:#666">· ${ci.label || `${ci.producto_nombre} ${fmtN(ci.cantidad_kg * 1000, 0)}g`} × ${i.qty}</div>`).join('')
         return `<div style="margin-bottom:4px">
           <div style="display:flex;justify-content:space-between">
-            <span>🍱 ${i.nombre} × ${i.qty}</span>
+            <span>${(i as any).esBox ? '' : '🍱 '}${i.nombre} × ${i.qty}</span>
             <span>${fmt(net)}</span>
           </div>${detalle}
         </div>`
@@ -170,6 +201,11 @@ export function POSClient() {
       alert(`Stock insuficiente:\n\n${nombres}\n\nAjustá las cantidades antes de cobrar.`)
       return
     }
+    const boxSinStock = cart.filter(ci => (ci as any).esBox).flatMap(ci => {
+      const b = boxes.find(x => -(1000000 + x.id) === ci.id)
+      return b ? boxFaltantes(b, ci.qty).map(c => `${ci.nombre.replace('📦 ', '')}: ${c.producto_nombre}`) : []
+    })
+    if (boxSinStock.length) { alert('Stock insuficiente en boxes:\n\n' + boxSinStock.join('\n')); return }
     setLoading(true)
     try {
       const { count } = await supabase.from('ventas').select('*', { count: 'exact', head: true })
@@ -177,7 +213,8 @@ export function POSClient() {
       const venta = { numero_ticket: num, fecha: today(), hora: nowTime(), cliente: cliente || 'Mostrador', medio_pago: pago, total, estado: 'cobrada' as const, notas }
       const { data: vd, error } = await supabase.from('ventas').insert(venta).select().single()
       if (error) throw error
-      await supabase.from('venta_items').insert(cart.map(i => ({ venta_id: vd.id, producto_id: i.id, producto_nombre: i.nombre, cantidad_kg: i.qty, precio_unit: i.pv, descuento_monto: calcDescItem(i), precio_final: calcNetItem(i) })))
+      const { error: itemsErr } = await supabase.from('venta_items').insert(cart.map(i => ({ venta_id: vd.id, producto_id: i.id > 0 ? i.id : null, producto_nombre: i.nombre, cantidad_kg: i.qty, precio_unit: i.pv, descuento_monto: calcDescItem(i), precio_final: calcNetItem(i) })) as any)
+      if (itemsErr) console.error('venta_items', itemsErr)
       await supabase.from('caja').insert({ fecha: today(), hora: nowTime(), tipo: 'ingreso', concepto: `Venta ${num} — ${cliente || 'Mostrador'}`, monto: total, venta_id: vd.id })
       await supabase.from('comandas').insert({ numero: 'C' + num, venta_id: vd.id, tipo: 'venta', contenido: { cliente, items: cart, total, pago, descuento: descuentoValor }, impresa: false })
       // Descontar stock — productos simples y componentes de combos
@@ -315,8 +352,8 @@ export function POSClient() {
               const esCombo = (i as any).esCombo
               const comboItems = (i as any).comboItems || []
               if (esCombo) {
-                const detalle = comboItems.map((ci: any) => `<div style="padding-left:16px;font-size:11px;color:#555">· ${ci.producto_nombre} ${fmtN(ci.cantidad_kg * 1000, 0)}g</div>`).join('')
-                return `<div style="margin-bottom:6px"><div style="display:flex;gap:8px;font-size:13px"><strong style="min-width:60px">× ${i.qty}</strong><span>🍱 ${i.nombre}</span></div>${detalle}</div>`
+                const detalle = comboItems.map((ci: any) => `<div style="padding-left:16px;font-size:11px;color:#555">· ${ci.label || `${ci.producto_nombre} ${fmtN(ci.cantidad_kg * 1000, 0)}g`}</div>`).join('')
+                return `<div style="margin-bottom:6px"><div style="display:flex;gap:8px;font-size:13px"><strong style="min-width:60px">× ${i.qty}</strong><span>${(i as any).esBox ? '' : '🍱 '}${i.nombre}</span></div>${detalle}</div>`
               }
               const unidadC = (i as any).unidad || 'kg'
               const qtyComanda = unidadC === 'u' ? `${i.qty} u` : `${fmtN(i.qty, 3)} ${unidadC}`
@@ -440,6 +477,34 @@ export function POSClient() {
                       <div style={{ fontSize: 15, color: stockOk ? c.color : '#aaa', fontWeight: 'bold' }}>{fmt(c.precio)}</div>
                       {c.descripcion && <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>{c.descripcion}</div>}
                       {!stockOk && (
+                        <div style={{ position: 'absolute', inset: 0, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: 10, color: '#aaa', background: 'rgba(255,255,255,.85)', padding: '2px 8px', borderRadius: 4, border: '1px solid #ddd' }}>Sin stock</span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ─── BOXES ARMADOS ─── */}
+          {boxes.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>📦</span> Boxes
+              </div>
+              <div className="prod-grid">
+                {boxes.map(b => {
+                  const ok = boxFaltantes(b).length === 0
+                  return (
+                    <div key={b.id} onClick={() => ok && addBoxToCart(b)} title={(b.items || []).map(it => '· ' + it.nombre).join('\n')}
+                      style={{ background: ok ? 'rgba(154,122,26,.06)' : '#f0f0f0', border: '1px solid ' + (ok ? 'rgba(154,122,26,.3)' : '#ddd'), borderTop: '3px solid ' + (ok ? '#9a7a1a' : '#ccc'), borderRadius: 8, padding: 11, cursor: ok ? 'pointer' : 'not-allowed', opacity: ok ? 1 : .5, position: 'relative', userSelect: 'none' }}>
+                      <div style={{ position: 'absolute', top: 8, right: 8, fontSize: 14 }}>📦</div>
+                      <div style={{ fontSize: 12, lineHeight: 1.3, marginBottom: 6, paddingRight: 20, fontWeight: 'bold' }}>{b.nombre}</div>
+                      <div style={{ fontSize: 15, color: ok ? 'var(--gold)' : '#aaa', fontWeight: 'bold' }}>{fmt(Number(b.precio))}</div>
+                      <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>{(b.items || []).length} productos · {b.tipo}</div>
+                      {!ok && (
                         <div style={{ position: 'absolute', inset: 0, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <span style={{ fontSize: 10, color: '#aaa', background: 'rgba(255,255,255,.85)', padding: '2px 8px', borderRadius: 4, border: '1px solid #ddd' }}>Sin stock</span>
                         </div>
