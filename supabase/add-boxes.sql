@@ -289,3 +289,8 @@ ALTER TABLE box_productos ADD COLUMN IF NOT EXISTS super_url text;
 ALTER TABLE box_productos ADD COLUMN IF NOT EXISTS super_fecha text;
 ALTER TABLE box_productos ADD COLUMN IF NOT EXISTS super_tipo text;
 ALTER TABLE boxes_armados ADD COLUMN IF NOT EXISTS valor_super numeric;
+
+-- ── v4: competitividad (ahorro cliente + margen mínimo) ──
+ALTER TABLE box_ajustes ADD COLUMN IF NOT EXISTS ahorro_cliente_pct numeric NOT NULL DEFAULT 15;
+ALTER TABLE box_ajustes ADD COLUMN IF NOT EXISTS margen_min_pct numeric NOT NULL DEFAULT 20;
+ALTER TABLE boxes_armados ADD COLUMN IF NOT EXISTS precio_modo text;

@@ -126,7 +126,15 @@ export type GenResult =
   | { ok: false; items: [] }
   | { ok: true; items: BoxProducto[]; cost: number; minimum: number; over: boolean }
 
-export function generate(products: BoxProducto[], type: string, rule: BoxTamano, budget: number, rng = Math.random): GenResult {
+// Relación costo / precio súper (menor = más competitivo). Sin referencia = 1
+export const ratio = (p: BoxProducto) => p.precio_super && p.precio_super > 0 && p.costo != null ? p.costo / p.precio_super : 1
+
+// Máxima relación costo/súper que permite dar `ahorro` al cliente y ganar `margen` después de comisión
+// Precio = súper × (1 − ahorro); margen = 1 − comisión − costo/precio  ⇒  costo/súper ≤ (1 − ahorro)(1 − comisión − margen)
+export const ratioMax = (ahorroPct: number, comisionPct: number, margenPct: number) =>
+  (1 - ahorroPct / 100) * (1 - comisionPct / 100 - margenPct / 100)
+
+export function generate(products: BoxProducto[], type: string, rule: BoxTamano, budget: number, rng = Math.random, competitivo = false): GenResult {
   const groups = rule.grupos, best = solve(products, type, groups), min = best.cost
   if (!Number.isFinite(min)) return { ok: false, items: [] }
   if (min > cents(budget)) {
@@ -141,7 +149,9 @@ export function generate(products: BoxProducto[], type: string, rule: BoxTamano,
       .filter(p => slotAllowed(type, p, i))
       .filter(p => spent + cents(p.costo!) + minimum(products, type, groups.slice(i + 1), [...selected, p]) <= cents(budget))
     if (!possible.length) return { ok: false, items: [] }
-    const p = possible[Math.min(possible.length - 1, Math.floor(rng() * possible.length))]
+    // Modo competitivo: elegir al azar solo entre el tercio con mejor relación costo/súper
+    const cand = competitivo ? possible.slice().sort((a, b) => ratio(a) - ratio(b)).slice(0, Math.max(1, Math.ceil(possible.length * 0.35))) : possible
+    const p = cand[Math.min(cand.length - 1, Math.floor(rng() * cand.length))]
     selected.push(p); spent += cents(p.costo!)
   }
   return { ok: true, items: selected, cost: spent / 100, minimum: min / 100, over: false }

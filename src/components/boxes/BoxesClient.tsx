@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import {
   type BoxProducto, type BoxTamano, type BoxTipo, type BoxOcasion, type Grupo,
   NAVIDENA, OCASIONES_NAVIDAD, key, pool, priced, minimum, generate, metrics, slotAllowed, cents,
-  type LemProducto, lemToBox, valorSuper,
+  type LemProducto, lemToBox, valorSuper, ratio, ratioMax,
 } from '@/lib/box-engine'
 import seed from '@/lib/box-seed.json'
 
@@ -71,6 +71,8 @@ export function BoxesClient() {
   const [tamanos, setTamanos] = useState<BoxTamano[]>([])
   const [packaging, setPackaging] = useState(500)
   const [comision, setComision] = useState(4)
+  const [ahorroPct, setAhorroPct] = useState(15)
+  const [margenMin, setMargenMin] = useState(20)
   const [armados, setArmados] = useState<Armado[]>([])
   const [lem, setLem] = useState<LemProducto[]>([])
   const [toast, setToast] = useState('')
@@ -105,7 +107,7 @@ export function BoxesClient() {
       setTipos(t.data || [])
       setOcasiones(o.data || [])
       setTamanos((s.data || []).map((x: any) => ({ ...x, precio: Number(x.precio), objetivo: Number(x.objetivo) })))
-      if (a.data) { setPackaging(Number(a.data.packaging)); setComision(Number(a.data.comision_pct)) }
+      if (a.data) { setPackaging(Number(a.data.packaging)); setComision(Number(a.data.comision_pct)); if (a.data.ahorro_cliente_pct != null) setAhorroPct(Number(a.data.ahorro_cliente_pct)); if (a.data.margen_min_pct != null) setMargenMin(Number(a.data.margen_min_pct)) }
       setArmados(g.data || [])
       setLem(l.data || [])
     } catch (e: any) {
@@ -140,10 +142,10 @@ export function BoxesClient() {
       {cargando ? <div style={{ ...card, color: 'var(--muted)' }}>Cargando boxes…</div>
         : error ? <div style={{ ...card, color: '#aa2020' }}>{error}</div>
         : tab === 'armador' && !tamanos.length ? <div style={card}>Faltan tamaños de box. Cargalos en Ajustes.</div>
-        : tab === 'armador' ? <Armador {...{ productos, lem, tipos, ocasiones, tamanos, packaging, comision, avisar }} onSaved={a => { setArmados(x => [a, ...x]); }} />
-        : tab === 'catalogo' ? <Catalogo {...{ productos, setProductos, tipos, avisar }} />
+        : tab === 'armador' ? <Armador {...{ productos, lem, tipos, ocasiones, tamanos, packaging, comision, ahorroPct, margenMin, avisar }} onSaved={a => { setArmados(x => [a, ...x]); }} />
+        : tab === 'catalogo' ? <Catalogo {...{ productos, setProductos, tipos, avisar, ahorroPct, margenMin, comision }} />
         : tab === 'guardados' ? <Guardados {...{ armados, setArmados, avisar }} />
-        : <Ajustes {...{ tamanos, setTamanos, packaging, setPackaging, comision, setComision, avisar }} />}
+        : <Ajustes {...{ tamanos, setTamanos, packaging, setPackaging, comision, setComision, ahorroPct, setAhorroPct, margenMin, setMargenMin, avisar }} />}
 
       {toast && <div style={{ position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)', background: '#1a1814', color: '#f5f3ef', padding: '12px 20px', borderRadius: 10, zIndex: 300, fontSize: 13, boxShadow: 'var(--shadow-md)', maxWidth: 'calc(100% - 30px)' }}>{toast}</div>}
 
@@ -165,9 +167,9 @@ export function BoxesClient() {
 // ══════════════════════════════════════════════════════════════════
 // ARMADOR
 // ══════════════════════════════════════════════════════════════════
-function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comision, avisar, onSaved }: {
+function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comision, ahorroPct, margenMin, avisar, onSaved }: {
   productos: BoxProducto[]; lem: LemProducto[]; tipos: BoxTipo[]; ocasiones: BoxOcasion[]; tamanos: BoxTamano[]
-  packaging: number; comision: number; avisar: (t: string) => void; onSaved: (a: Armado) => void
+  packaging: number; comision: number; ahorroPct: number; margenMin: number; avisar: (t: string) => void; onSaved: (a: Armado) => void
 }) {
   const [ocasion, setOcasion] = useState('')
   const [tipo, setTipo] = useState('Despensa')
@@ -178,6 +180,7 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
   const [slot, setSlot] = useState(0)
   const [q, setQ] = useState('')
   const [fuente, setFuente] = useState<'box' | 'lem'>('box')
+  const [modoPrecio, setModoPrecio] = useState<'super' | 'fijo'>('super')
   const [lemSel, setLemSel] = useState<LemProducto | null>(null)
   const [lemCant, setLemCant] = useState('1')
   const [fNombre, setFNombre] = useState('')
@@ -199,8 +202,14 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
   }
   function modoHabitual() { setOcasion(''); if (tipo === NAVIDENA) { setTipo('Despensa'); reset() } }
 
-  const m = metrics(items, rule, packaging, comision)
-  const budget = rule.objetivo
+  // Precio del box: fijo por tamaño o calculado desde el valor en súper menos el ahorro objetivo
+  const vs0 = valorSuper(items, rule.precio)
+  const precioSuper = vs0.total > 0 && vs0.faltan === 0 ? Math.floor(vs0.total * (1 - ahorroPct / 100) / 100) * 100 : null
+  const precioBox = modoPrecio === 'super' && precioSuper ? precioSuper : rule.precio
+  const ruleP = { ...rule, precio: precioBox }
+  const m = metrics(items, ruleP, packaging, comision)
+  const costoMax = Math.max(0, precioBox * (1 - comision / 100 - margenMin / 100) - packaging)
+  const budget = modoPrecio === 'super' && precioSuper ? costoMax : rule.objetivo
   const min = useMemo(() => minimum(productos, tipo, rule.grupos), [productos, tipo, rule])
   const chosen = items.filter(Boolean).length
   const counts = Object.fromEntries((['A', 'B', 'C'] as Grupo[]).map(g => [g, new Set(pool(productos, tipo, g).map(key)).size]))
@@ -208,11 +217,12 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
   const headsReady = rule.grupos.every((g, i) => g !== 'A' || !!items[i])
   const over = m.cost > budget
   const estimados = items.filter(p => p && p.precio_tipo !== 'manual').length
-  const vs = valorSuper(items, rule.precio)
+  const vs = valorSuper(items, precioBox)
+  const competitivo = m.complete && vs.total > 0 && vs.faltan === 0 && vs.ahorroPct >= ahorroPct / 100 - 0.005 && m.margin >= margenMin / 100 - 0.0005
   const nA = rule.grupos.filter(x => x === 'A').length
 
   function azar() {
-    const r = generate(productos, tipo, rule, budget)
+    const r = generate(productos, tipo, rule, rule.objetivo, Math.random, true)
     if (!r.ok) { avisar('Faltan productos compatibles con costo.'); return }
     setItems(r.items)
     avisar(r.over ? 'Se armó la combinación más económica. Revisá el exceso de costo.' : 'Box armado. Podés cambiar cualquier producto.')
@@ -245,8 +255,8 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
     if (!m.complete) return
     setGuardando(true)
     const row = {
-      nombre: fNombre.trim() || (occ ? `Caja ${occ.nombre}` : `Box ${tipo}`) + ` ${whole(rule.precio)}`,
-      tipo, ocasion: ocasion || null, tamano: rule.tamano, precio: rule.precio,
+      nombre: fNombre.trim() || (occ ? `Caja ${occ.nombre}` : `Box ${tipo}`) + ` ${whole(precioBox)}`,
+      tipo, ocasion: ocasion || null, tamano: rule.tamano, precio: precioBox, precio_modo: modoPrecio === 'super' && precioSuper ? 'super' : 'fijo',
       items: items.map(p => ({ id: p!.id, nombre: p!.nombre, marca: p!.marca, presentacion: p!.presentacion, costo: p!.costo, grupo: p!.grupo, precio_super: p!.precio_super ?? null,
         origen: p!.lem ? 'lem' : 'box', producto_id: p!.lem?.producto_id ?? null, cantidad: p!.lem?.cantidad ?? 1, unidad: p!.lem?.unidad ?? 'u' })),
       costo_mercaderia: m.cost, valor_super: vs.faltan === 0 && vs.total > 0 ? vs.total : null, packaging, comision: m.fee, margen: m.margin, notas: fNotas.trim() || null,
@@ -360,7 +370,7 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
                   <div style={{ fontSize: 15, paddingRight: 22 }}>{p.nombre}</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)', margin: '2px 0 8px' }}>{p.marca} · {p.presentacion}</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 14, color: 'var(--gold)' }}>{money(p.costo || 0)}{p.precio_super ? <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8 }}>súper {whole(p.precio_super)}</span> : null}</span>
+                    <span style={{ fontSize: 14, color: 'var(--gold)' }}>{money(p.costo || 0)}{p.precio_super ? <span style={{ fontSize: 11, color: ratio(p) <= ratioMax(ahorroPct, comision, margenMin) ? '#1a7a40' : ratio(p) <= 0.85 ? '#83500c' : '#a32e27', marginLeft: 8 }}>súper {whole(p.precio_super)} · {Math.round(ratio(p) * 100)}%</span> : null}</span>
                     <button onClick={() => abrirPicker(i)} style={{ background: 'none', border: 'none', textDecoration: 'underline', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia,serif', color: 'var(--text)' }}>Cambiar</button>
                   </div>
                   <button onClick={() => setItems(prev => prev.map((x, j) => j === i ? null : x))} aria-label={`Quitar ${p.nombre}`} style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', fontSize: 18, color: 'var(--muted)', cursor: 'pointer' }}>×</button>
@@ -379,7 +389,13 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
       <aside className="bx-summary" style={{ ...card, padding: 0, overflow: 'hidden' }}>
         <div style={{ background: '#1a1814', color: '#f5f3ef', padding: 20, borderBottom: '2px solid #9a7a1a' }}>
           <div style={{ fontSize: 11, color: '#9e9890', letterSpacing: 1, textTransform: 'uppercase' }}>Precio de venta</div>
-          <div style={{ fontSize: 38, color: '#c9a227', lineHeight: 1.2, margin: '4px 0 8px' }}>{whole(rule.precio)}</div>
+          <div style={{ fontSize: 38, color: '#c9a227', lineHeight: 1.2, margin: '4px 0 8px' }}>{whole(precioBox)}</div>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+            {([['super', `Súper −${ahorroPct}%`], ['fijo', `Fijo ${whole(rule.precio)}`]] as const).map(([k, l]) => (
+              <button key={k} onClick={() => setModoPrecio(k)} style={{ flex: 1, padding: '5px 8px', borderRadius: 5, fontSize: 11, cursor: 'pointer', fontFamily: 'Georgia,serif', border: '1px solid ' + (modoPrecio === k ? '#c9a227' : '#444'), background: modoPrecio === k ? 'rgba(201,162,39,.15)' : 'transparent', color: modoPrecio === k ? '#c9a227' : '#9e9890' }}>{l}</button>
+            ))}
+          </div>
+          {modoPrecio === 'super' && !precioSuper && <div style={{ fontSize: 11, color: '#9e9890', marginBottom: 6 }}>{chosen ? 'Faltan precios de súper: se usa el precio fijo.' : 'Se calcula al elegir los productos.'}</div>}
           <div style={{ fontSize: 15 }}>{occ ? 'Caja ' + occ.nombre : 'Box ' + tipo}</div>
           <div style={{ fontSize: 12, color: '#9e9890' }}>{occ ? tipo + ' · ' : ''}{rule.grupos.length} productos · {nA} protagonista{nA > 1 ? 's' : ''}</div>
         </div>
@@ -388,14 +404,17 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
             fontSize: 12, padding: '5px 10px', borderRadius: 6, display: 'inline-block',
             background: !m.complete ? '#fff1d7' : over ? '#fce8e4' : 'rgba(30,140,70,.1)',
             color: !m.complete ? '#8b5510' : over ? '#a32e27' : '#1a7a40',
-          }}>{!m.complete ? `Faltan ${rule.grupos.length - chosen} productos` : over ? 'Supera el objetivo' : 'Box completo'}</span>
+          }}>{!m.complete ? `Faltan ${rule.grupos.length - chosen} productos` : over ? (modoPrecio === 'super' && precioSuper ? 'Costo alto para el margen' : 'Supera el objetivo') : 'Box completo'}</span>
+          {m.complete && vs.total > 0 && vs.faltan === 0 && (
+            <span style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, display: 'inline-block', marginLeft: 6, background: competitivo ? 'rgba(30,140,70,.1)' : '#fce8e4', color: competitivo ? '#1a7a40' : '#a32e27' }}>{competitivo ? '✓ Competitivo' : '✗ No competitivo'}</span>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 16, fontSize: 13 }}>
             <span>Mercadería{m.complete ? '' : ' parcial'}</span><span style={{ fontSize: 19 }}>{money(m.cost)}</span>
           </div>
           <div style={{ height: 6, background: 'var(--borderl)', borderRadius: 6, margin: '8px 0' }}>
             <div style={{ height: '100%', borderRadius: 6, transition: 'width .2s', width: `${Math.min(100, budget > 0 ? m.cost / budget * 100 : 0)}%`, background: over ? '#a32e27' : '#548567' }} />
           </div>
-          <div style={{ fontSize: 11, color: 'var(--muted)' }}>Objetivo: {money(budget)} · {over ? 'Exceso' : 'Disponible'}: {money(Math.abs(budget - m.cost))}</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{modoPrecio === 'super' && precioSuper ? `Costo máx. para margen ${margenMin}%` : 'Objetivo'}: {money(budget)} · {over ? 'Exceso' : 'Disponible'}: {money(Math.abs(budget - m.cost))}</div>
           <div style={{ margin: '16px 0', fontSize: 13, display: 'grid', gap: 7 }}>
             {[
               ['Packaging', money(packaging)],
@@ -406,17 +425,22 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
           </div>
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 13 }}>Margen</span>
-            <span style={{ fontSize: 26, color: m.complete && m.margin < .3 ? '#a32e27' : 'var(--text)' }}>{m.complete ? pct(m.margin) : '—'}</span>
+            <span style={{ fontSize: 26, color: m.complete && m.margin < margenMin / 100 ? '#a32e27' : 'var(--text)' }}>{m.complete ? pct(m.margin) : '—'}</span>
           </div>
           {chosen > 0 && (
             <div style={{ marginTop: 14, borderRadius: 8, padding: 12, background: vs.total > 0 && vs.ahorro < 0 ? '#fce8e4' : 'rgba(30,140,70,.08)', border: '1px solid ' + (vs.total > 0 && vs.ahorro < 0 ? 'rgba(163,46,39,.25)' : 'rgba(30,140,70,.2)') }}>
               <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Percepción del cliente</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span style={{ color: 'var(--muted)' }}>En el súper pagaría</span><span>{vs.total > 0 ? money(vs.total) : '—'}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}><span style={{ color: 'var(--muted)' }}>Precio del box</span><span>{money(rule.precio)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}><span style={{ color: 'var(--muted)' }}>Precio del box</span><span>{money(precioBox)}</span></div>
               {vs.total > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(0,0,0,.08)' }}>
                   <span style={{ fontSize: 13 }}>{vs.ahorro >= 0 ? 'Ahorra' : 'Paga de más'}</span>
                   <span style={{ fontSize: 20, color: vs.ahorro >= 0 ? '#1a7a40' : '#a32e27' }}>{money(Math.abs(vs.ahorro))} <span style={{ fontSize: 13 }}>({pct(Math.abs(vs.ahorroPct))})</span></span>
+                </div>
+              )}
+              {m.complete && vs.total > 0 && vs.faltan === 0 && !competitivo && (
+                <div style={{ fontSize: 11, color: '#a32e27', marginTop: 8, lineHeight: 1.5 }}>
+                  Para dar {ahorroPct}% de ahorro y ganar {margenMin}%, la mercadería tiene que costar como máximo {money(Math.max(0, Math.floor(vs.total * (1 - ahorroPct / 100)) * (1 - comision / 100 - margenMin / 100) - packaging))} (hoy {money(m.cost)}). Cambiá los productos con peor relación costo/súper o conseguí mejor precio de compra.
                 </div>
               )}
               {vs.faltan > 0 && <div style={{ fontSize: 11, color: '#83500c', marginTop: 6 }}>{vs.faltan} producto{vs.faltan > 1 ? 's' : ''} sin precio de súper: el valor está incompleto.</div>}
@@ -564,20 +588,28 @@ const SUPER_TIPO: Record<string, { l: string; c: string }> = {
 const superLink = (n: string) => { const t = encodeURIComponent(n.replace(/\s*\(x\d+\)$/, '').replace(/%/g, '')); return `https://www.carrefour.com.ar/${t}?_q=${t}&map=ft` }
 const EMPTY: BoxProducto = { id: '', nombre: '', marca: '', presentacion: '', costo: null, grupo: 'B', familia: '', tipos: [], estado: 'Ingresado manualmente', precio_tipo: 'manual', precio_nota: 'Costo cargado por el usuario.', precio_fecha: '', precio_fuente: null, activo: true }
 
-function Catalogo({ productos, setProductos, tipos, avisar }: {
+function Catalogo({ productos, setProductos, tipos, avisar, ahorroPct, margenMin, comision }: {
   productos: BoxProducto[]; setProductos: React.Dispatch<React.SetStateAction<BoxProducto[]>>; tipos: BoxTipo[]; avisar: (t: string) => void
+  ahorroPct: number; margenMin: number; comision: number
 }) {
   const [q, setQ] = useState('')
   const [fGrupo, setFGrupo] = useState('')
   const [fTipo, setFTipo] = useState('')
-  const [fEstado, setFEstado] = useState<'' | 'validar' | 'manual'>('')
+  const [fEstado, setFEstado] = useState<'' | 'validar' | 'manual' | 'nocomp' | 'comp' | 'sinref'>('')
+  const rMax = ratioMax(ahorroPct, comision, margenMin)
+  const conRef = productos.filter(p => p.activo && p.precio_super && p.costo != null)
+  const esComp = (p: BoxProducto) => !!p.precio_super && p.costo != null && ratio(p) <= rMax
+  const nComp = conRef.filter(esComp).length
+  const ratios = conRef.map(ratio).sort((a, b) => a - b)
+  const ratioMed = ratios.length ? ratios[Math.floor(ratios.length / 2)] : 0
   const [edit, setEdit] = useState<BoxProducto | null>(null)
   const [esNuevo, setEsNuevo] = useState(false)
 
   const lista = productos.filter(p =>
     norm([p.id, p.nombre, p.marca, p.presentacion].join(' ')).includes(norm(q)) &&
     (!fGrupo || p.grupo === fGrupo) && (!fTipo || p.tipos.includes(fTipo)) &&
-    (!fEstado || (fEstado === 'manual' ? p.precio_tipo === 'manual' : p.precio_tipo !== 'manual')))
+    (!fEstado || (fEstado === 'manual' ? p.precio_tipo === 'manual' : fEstado === 'validar' ? p.precio_tipo !== 'manual'
+      : fEstado === 'comp' ? esComp(p) : fEstado === 'nocomp' ? (!!p.precio_super && !esComp(p)) : !p.precio_super)))
   const aValidar = productos.filter(p => p.precio_tipo !== 'manual').length
 
   async function guardarCosto(p: BoxProducto, valor: string) {
@@ -636,9 +668,17 @@ function Catalogo({ productos, setProductos, tipos, avisar }: {
           <option value="">Todos los tipos</option>{tipos.map(t => <option key={t.nombre}>{t.nombre}</option>)}
         </select>
         <select value={fEstado} onChange={e => setFEstado(e.target.value as any)} style={{ width: 'auto' }}>
-          <option value="">Todos los costos</option><option value="validar">A validar ({aValidar})</option><option value="manual">Costo propio</option>
+          <option value="">Todos los costos</option><option value="validar">A validar ({aValidar})</option><option value="manual">Costo propio</option><option value="comp">Competitivos ({nComp})</option><option value="nocomp">No competitivos ({conRef.length - nComp})</option><option value="sinref">Sin precio súper</option>
         </select>
         <button onClick={nuevo} style={b('gold')}>+ Producto</button>
+      </div>
+      <div style={{ ...card, marginBottom: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 12, alignItems: 'center' }}>
+        <div><div style={lbl}>Competitivos</div><div style={{ fontSize: 22, color: nComp / Math.max(1, conRef.length) >= .5 ? '#1a7a40' : '#a32e27' }}>{nComp} <span style={{ fontSize: 13, color: 'var(--muted)' }}>de {conRef.length}</span></div></div>
+        <div><div style={lbl}>Costo / súper (mediana)</div><div style={{ fontSize: 22, color: ratioMed <= rMax ? '#1a7a40' : '#a32e27' }}>{Math.round(ratioMed * 100)}%</div></div>
+        <div><div style={lbl}>Máximo para competir</div><div style={{ fontSize: 22 }}>{Math.round(rMax * 100)}%</div></div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5, gridColumn: 'span 2' }}>
+          Para darle {ahorroPct}% de ahorro al cliente y ganar {margenMin}% (con {comision}% de comisión), cada producto tiene que costarte como máximo el {Math.round(rMax * 100)}% de su precio en el súper. La columna <b>Comprar a máx.</b> te dice el precio a negociar con el mayorista.
+        </div>
       </div>
       <p style={{ fontSize: 12, color: '#83500c', margin: '0 2px 12px' }}>
         {aValidar} productos tienen importes de referencia (Excel original, precios minoristas publicados o estimados). Cargá tu costo de compra real en la columna Costo: se guarda al salir del campo.
@@ -673,7 +713,8 @@ function Catalogo({ productos, setProductos, tipos, avisar }: {
                   {p.precio_super ? (
                     <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3, lineHeight: 1.3 }} title={p.super_nombre || ''}>
                       <span style={{ color: SUPER_TIPO[p.super_tipo || '']?.c || 'var(--muted)' }}>{SUPER_TIPO[p.super_tipo || '']?.l || p.super_tipo}</span>
-                      {p.costo ? <> · margen {pct(1 - Number(p.costo) / Number(p.precio_super))}</> : null}
+                      {' · '}<span style={{ color: esComp(p) ? '#1a7a40' : '#a32e27', fontWeight: 600 }}>comprar a máx. {whole(Number(p.precio_super) * rMax)}</span>
+                      {p.costo ? <> · hoy {Math.round(ratio(p) * 100)}%</> : null}
                       {p.super_nombre && p.super_tipo !== 'manual' && <> · <a href={superLink(p.super_nombre)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--muted)' }}>ver</a></>}
                     </div>
                   ) : null}
@@ -795,12 +836,15 @@ function Guardados({ armados, setArmados, avisar }: { armados: Armado[]; setArma
 // ══════════════════════════════════════════════════════════════════
 // AJUSTES
 // ══════════════════════════════════════════════════════════════════
-function Ajustes({ tamanos, setTamanos, packaging, setPackaging, comision, setComision, avisar }: {
+function Ajustes({ tamanos, setTamanos, packaging, setPackaging, comision, setComision, ahorroPct, setAhorroPct, margenMin, setMargenMin, avisar }: {
   tamanos: BoxTamano[]; setTamanos: React.Dispatch<React.SetStateAction<BoxTamano[]>>
-  packaging: number; setPackaging: (n: number) => void; comision: number; setComision: (n: number) => void; avisar: (t: string) => void
+  packaging: number; setPackaging: (n: number) => void; comision: number; setComision: (n: number) => void
+  ahorroPct: number; setAhorroPct: (n: number) => void; margenMin: number; setMargenMin: (n: number) => void; avisar: (t: string) => void
 }) {
   const [pk, setPk] = useState(String(packaging))
   const [cm, setCm] = useState(String(comision))
+  const [ah, setAh] = useState(String(ahorroPct))
+  const [mg, setMg] = useState(String(margenMin))
   const [rows, setRows] = useState(tamanos.map(t => ({ ...t, gruposTxt: t.grupos.join(' ') })))
   const [guardando, setGuardando] = useState(false)
 
@@ -811,7 +855,10 @@ function Ajustes({ tamanos, setTamanos, packaging, setPackaging, comision, setCo
     if (parsed.some(r => !r.grupos.length || r.grupos.some(g => !['A', 'B', 'C'].includes(g)) || !(r.precio > 0) || !(r.objetivo >= 0))) { avisar('Cada tamaño necesita precio, objetivo y grupos A/B/C.'); return }
     setGuardando(true)
     const db = supabase as any
-    const r1 = await db.from('box_ajustes').upsert({ id: 1, packaging: p, comision_pct: c })
+    const a = Number(ah), mm = Number(mg)
+    if (!(a >= 0 && a < 100) || !(mm >= 0 && mm < 100)) { setGuardando(false); avisar('Revisá ahorro y margen.'); return }
+    const r1 = await db.from('box_ajustes').upsert({ id: 1, packaging: p, comision_pct: c, ahorro_cliente_pct: a, margen_min_pct: mm })
+    if (!r1.error) { setAhorroPct(a); setMargenMin(mm) }
     const r2 = await db.from('box_tamanos').upsert(parsed)
     setGuardando(false)
     if (r1.error || r2.error) { avisar('Error al guardar: ' + (r1.error || r2.error).message); return }
@@ -826,6 +873,8 @@ function Ajustes({ tamanos, setTamanos, packaging, setPackaging, comision, setCo
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
           <div><label style={lbl}>Packaging por box ($)</label><input type="number" min={0} step="0.01" value={pk} onChange={e => setPk(e.target.value)} /></div>
           <div><label style={lbl}>Comisión de pago (%)</label><input type="number" min={0} max={100} step="0.01" value={cm} onChange={e => setCm(e.target.value)} /></div>
+          <div><label style={lbl}>Ahorro para el cliente vs. súper (%)</label><input type="number" min={0} max={90} step="1" value={ah} onChange={e => setAh(e.target.value)} /></div>
+          <div><label style={lbl}>Margen mínimo (%)</label><input type="number" min={0} max={90} step="1" value={mg} onChange={e => setMg(e.target.value)} /></div>
         </div>
       </div>
       <div style={card}>
