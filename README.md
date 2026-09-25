@@ -126,6 +126,7 @@ lem-crm/
 | `/etiquetas` | Generador de etiquetas con "Consumir antes del" automático, batch |
 | `/ventas` | Historial de ventas, filtros, exportación CSV |
 | `/caja` | Ingresos/egresos, movimientos del día, resumen semanal |
+| `/boxes` | Armador de boxes de almacén: tipo + tamaño, armado al azar con tope de costo, margen, catálogo de costos editable y boxes guardados (`supabase/add-boxes.sql`) |
 
 ---
 
