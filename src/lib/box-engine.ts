@@ -18,6 +18,12 @@ export interface BoxProducto {
   precio_nota: string | null
   precio_fecha: string | null
   precio_fuente: string | null
+  // Precio de referencia en supermercado tradicional (góndola)
+  precio_super?: number | null
+  super_nombre?: string | null
+  super_url?: string | null
+  super_fecha?: string | null
+  super_tipo?: string | null
   activo: boolean
   // Presente cuando el ítem es un producto del CRM (tabla productos)
   lem?: { producto_id: number; cantidad: number; unidad: string; precio_venta: number }
@@ -36,6 +42,7 @@ export function lemToBox(p: LemProducto, cantidad: number, grupo: Grupo, tipo: s
     costo: Math.round((Number(p.costo) || 0) * cantidad * 100) / 100, grupo, familia: 'lem:' + p.id, tipos: [tipo],
     estado: 'Producto LEM', precio_tipo: 'manual', precio_nota: null, precio_fecha: null, precio_fuente: null, activo: true,
     lem: { producto_id: p.id, cantidad, unidad, precio_venta: Number(p.precio_venta) || 0 },
+    precio_super: Math.round((Number(p.precio_venta) || 0) * cantidad), super_tipo: 'pv-lem', super_nombre: 'Precio de venta LEM',
   }
 }
 
@@ -150,4 +157,13 @@ export function metrics(items: (BoxProducto | null)[], rule: BoxTamano, packagin
     margin: (rule.precio - total) / rule.precio,
     complete: items.length === rule.grupos.length && items.every(Boolean),
   }
+}
+
+// Valor de referencia del box en supermercado vs. precio del box
+export function valorSuper(items: (BoxProducto | null)[], precioBox: number) {
+  const list = items.filter(Boolean) as BoxProducto[]
+  const con = list.filter(p => typeof p.precio_super === 'number' && p.precio_super > 0)
+  const total = con.reduce((s, p) => s + Number(p.precio_super), 0)
+  const ahorro = total - precioBox
+  return { total, faltan: list.length - con.length, ahorro, ahorroPct: total > 0 ? ahorro / total : 0 }
 }

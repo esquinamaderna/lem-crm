@@ -281,3 +281,11 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE boxes_armados ADD COLUMN IF NOT EXISTS en_venta boolean NOT NULL DEFAULT true;
 ALTER TABLE venta_items ADD COLUMN IF NOT EXISTS descuento_monto numeric DEFAULT 0;
 ALTER TABLE venta_items ADD COLUMN IF NOT EXISTS precio_final numeric;
+
+-- ── v3: precio de referencia en supermercado (Carrefour) ──
+ALTER TABLE box_productos ADD COLUMN IF NOT EXISTS precio_super numeric;
+ALTER TABLE box_productos ADD COLUMN IF NOT EXISTS super_nombre text;
+ALTER TABLE box_productos ADD COLUMN IF NOT EXISTS super_url text;
+ALTER TABLE box_productos ADD COLUMN IF NOT EXISTS super_fecha text;
+ALTER TABLE box_productos ADD COLUMN IF NOT EXISTS super_tipo text;
+ALTER TABLE boxes_armados ADD COLUMN IF NOT EXISTS valor_super numeric;

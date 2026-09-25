@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import {
   type BoxProducto, type BoxTamano, type BoxTipo, type BoxOcasion, type Grupo,
   NAVIDENA, OCASIONES_NAVIDAD, key, pool, priced, minimum, generate, metrics, slotAllowed, cents,
-  type LemProducto, lemToBox,
+  type LemProducto, lemToBox, valorSuper,
 } from '@/lib/box-engine'
 import seed from '@/lib/box-seed.json'
 
@@ -57,6 +57,7 @@ interface Armado {
   id: number; nombre: string; tipo: string; ocasion: string | null; tamano: number; precio: number
   items: { id: string; nombre: string; marca: string | null; presentacion: string | null; costo: number; grupo: string; origen?: 'box' | 'lem'; producto_id?: number | null; cantidad?: number; unidad?: string }[]
   en_venta?: boolean
+  valor_super?: number | null
   costo_mercaderia: number; packaging: number; comision: number; margen: number | null; notas: string | null; created_at: string
 }
 
@@ -100,7 +101,7 @@ export function BoxesClient() {
         db.from('productos').select('id,nombre,categoria,costo,precio_venta,unidad_venta,stock_kg').eq('activo', true).order('nombre'),
       ])
       if (p.error) throw p.error
-      setProductos((p.data || []).map((x: any) => ({ ...x, activo: x.activo !== false, costo: x.costo === null ? null : Number(x.costo) })))
+      setProductos((p.data || []).map((x: any) => ({ ...x, activo: x.activo !== false, costo: x.costo === null ? null : Number(x.costo), precio_super: x.precio_super == null ? null : Number(x.precio_super) })))
       setTipos(t.data || [])
       setOcasiones(o.data || [])
       setTamanos((s.data || []).map((x: any) => ({ ...x, precio: Number(x.precio), objetivo: Number(x.objetivo) })))
@@ -207,6 +208,7 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
   const headsReady = rule.grupos.every((g, i) => g !== 'A' || !!items[i])
   const over = m.cost > budget
   const estimados = items.filter(p => p && p.precio_tipo !== 'manual').length
+  const vs = valorSuper(items, rule.precio)
   const nA = rule.grupos.filter(x => x === 'A').length
 
   function azar() {
@@ -245,9 +247,9 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
     const row = {
       nombre: fNombre.trim() || (occ ? `Caja ${occ.nombre}` : `Box ${tipo}`) + ` ${whole(rule.precio)}`,
       tipo, ocasion: ocasion || null, tamano: rule.tamano, precio: rule.precio,
-      items: items.map(p => ({ id: p!.id, nombre: p!.nombre, marca: p!.marca, presentacion: p!.presentacion, costo: p!.costo, grupo: p!.grupo,
+      items: items.map(p => ({ id: p!.id, nombre: p!.nombre, marca: p!.marca, presentacion: p!.presentacion, costo: p!.costo, grupo: p!.grupo, precio_super: p!.precio_super ?? null,
         origen: p!.lem ? 'lem' : 'box', producto_id: p!.lem?.producto_id ?? null, cantidad: p!.lem?.cantidad ?? 1, unidad: p!.lem?.unidad ?? 'u' })),
-      costo_mercaderia: m.cost, packaging, comision: m.fee, margen: m.margin, notas: fNotas.trim() || null,
+      costo_mercaderia: m.cost, valor_super: vs.faltan === 0 && vs.total > 0 ? vs.total : null, packaging, comision: m.fee, margen: m.margin, notas: fNotas.trim() || null,
     }
     const { data, error } = await (supabase as any).from('boxes_armados').insert(row).select().single()
     setGuardando(false)
@@ -358,7 +360,7 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
                   <div style={{ fontSize: 15, paddingRight: 22 }}>{p.nombre}</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)', margin: '2px 0 8px' }}>{p.marca} · {p.presentacion}</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 14, color: 'var(--gold)' }}>{money(p.costo || 0)}</span>
+                    <span style={{ fontSize: 14, color: 'var(--gold)' }}>{money(p.costo || 0)}{p.precio_super ? <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8 }}>súper {whole(p.precio_super)}</span> : null}</span>
                     <button onClick={() => abrirPicker(i)} style={{ background: 'none', border: 'none', textDecoration: 'underline', fontSize: 12, cursor: 'pointer', fontFamily: 'Georgia,serif', color: 'var(--text)' }}>Cambiar</button>
                   </div>
                   <button onClick={() => setItems(prev => prev.map((x, j) => j === i ? null : x))} aria-label={`Quitar ${p.nombre}`} style={{ position: 'absolute', right: 8, top: 8, background: 'none', border: 'none', fontSize: 18, color: 'var(--muted)', cursor: 'pointer' }}>×</button>
@@ -406,6 +408,20 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
             <span style={{ fontSize: 13 }}>Margen</span>
             <span style={{ fontSize: 26, color: m.complete && m.margin < .3 ? '#a32e27' : 'var(--text)' }}>{m.complete ? pct(m.margin) : '—'}</span>
           </div>
+          {chosen > 0 && (
+            <div style={{ marginTop: 14, borderRadius: 8, padding: 12, background: vs.total > 0 && vs.ahorro < 0 ? '#fce8e4' : 'rgba(30,140,70,.08)', border: '1px solid ' + (vs.total > 0 && vs.ahorro < 0 ? 'rgba(163,46,39,.25)' : 'rgba(30,140,70,.2)') }}>
+              <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Percepción del cliente</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}><span style={{ color: 'var(--muted)' }}>En el súper pagaría</span><span>{vs.total > 0 ? money(vs.total) : '—'}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}><span style={{ color: 'var(--muted)' }}>Precio del box</span><span>{money(rule.precio)}</span></div>
+              {vs.total > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(0,0,0,.08)' }}>
+                  <span style={{ fontSize: 13 }}>{vs.ahorro >= 0 ? 'Ahorra' : 'Paga de más'}</span>
+                  <span style={{ fontSize: 20, color: vs.ahorro >= 0 ? '#1a7a40' : '#a32e27' }}>{money(Math.abs(vs.ahorro))} <span style={{ fontSize: 13 }}>({pct(Math.abs(vs.ahorroPct))})</span></span>
+                </div>
+              )}
+              {vs.faltan > 0 && <div style={{ fontSize: 11, color: '#83500c', marginTop: 6 }}>{vs.faltan} producto{vs.faltan > 1 ? 's' : ''} sin precio de súper: el valor está incompleto.</div>}
+            </div>
+          )}
           <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 12, lineHeight: 1.5 }}>
             {m.complete ? 'Después de mercadería, packaging y comisión. No incluye costos fijos.' : 'Completá el box para ver costo total y margen.'}
             {estimados > 0 && ` Incluye ${estimados} importe${estimados > 1 ? 's' : ''} de referencia sin validar.`}
@@ -538,6 +554,14 @@ function Armador({ productos, lem, tipos, ocasiones, tamanos, packaging, comisio
 // ══════════════════════════════════════════════════════════════════
 // CATÁLOGO
 // ══════════════════════════════════════════════════════════════════
+const SUPER_TIPO: Record<string, { l: string; c: string }> = {
+  exacto: { l: 'Carrefour · mismo producto', c: '#1a7a40' },
+  equiv: { l: 'Carrefour · equivalente', c: '#456475' },
+  marca: { l: 'Carrefour · otra medida', c: '#83500c' },
+  aprox: { l: 'Carrefour · aproximado', c: '#83500c' },
+  manual: { l: 'Cargado a mano', c: '#1a7a40' },
+}
+const superLink = (n: string) => { const t = encodeURIComponent(n.replace(/\s*\(x\d+\)$/, '').replace(/%/g, '')); return `https://www.carrefour.com.ar/${t}?_q=${t}&map=ft` }
 const EMPTY: BoxProducto = { id: '', nombre: '', marca: '', presentacion: '', costo: null, grupo: 'B', familia: '', tipos: [], estado: 'Ingresado manualmente', precio_tipo: 'manual', precio_nota: 'Costo cargado por el usuario.', precio_fecha: '', precio_fuente: null, activo: true }
 
 function Catalogo({ productos, setProductos, tipos, avisar }: {
@@ -565,6 +589,17 @@ function Catalogo({ productos, setProductos, tipos, avisar }: {
     if (error) { avisar('Error: ' + error.message); return }
     setProductos(prev => prev.map(x => x.id === p.id ? { ...x, ...patch } : x))
     avisar(`Costo de ${p.nombre} ${p.marca || ''} actualizado.`)
+  }
+
+  async function guardarSuper(p: BoxProducto, valor: string) {
+    const v = valor === '' ? null : Number(valor)
+    if (v !== null && (!Number.isFinite(v) || v < 0)) return
+    if (v === (p.precio_super ?? null)) return
+    const patch = { precio_super: v, super_tipo: v === null ? null : 'manual', super_nombre: v === null ? null : 'Cargado a mano', super_url: null, super_fecha: new Date().toLocaleDateString('es-AR') }
+    const { error } = await (supabase as any).from('box_productos').update(patch).eq('id', p.id)
+    if (error) { avisar('Error: ' + error.message); return }
+    setProductos(prev => prev.map(x => x.id === p.id ? { ...x, ...patch } : x))
+    avisar(`Precio súper de ${p.nombre} actualizado.`)
   }
 
   async function toggleActivo(p: BoxProducto) {
@@ -609,9 +644,9 @@ function Catalogo({ productos, setProductos, tipos, avisar }: {
         {aValidar} productos tienen importes de referencia (Excel original, precios minoristas publicados o estimados). Cargá tu costo de compra real en la columna Costo: se guarda al salir del campo.
       </p>
       <div style={{ ...card, padding: 0, overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 760 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 920 }}>
           <thead><tr>
-            {['Producto', 'Grupo', 'Tipos', 'Origen del costo', 'Costo', ''].map(h => <th key={h} style={{ fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'left', padding: '10px', borderBottom: '1px solid var(--border)' }}>{h}</th>)}
+            {['Producto', 'Grupo', 'Tipos', 'Origen del costo', 'Costo', 'Precio súper', ''].map(h => <th key={h} style={{ fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--muted)', textAlign: 'left', padding: '10px', borderBottom: '1px solid var(--border)' }}>{h}</th>)}
           </tr></thead>
           <tbody>
             {lista.map(p => (
@@ -631,13 +666,25 @@ function Catalogo({ productos, setProductos, tipos, avisar }: {
                     onBlur={e => guardarCosto(p, e.target.value)} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                     style={{ padding: '6px 8px', fontSize: 13 }} />
                 </td>
+                <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', width: 170 }}>
+                  <input key={p.id + ':s:' + p.precio_super} type="number" min={0} step="0.01" defaultValue={p.precio_super ?? ''} placeholder="Sin ref."
+                    onBlur={e => guardarSuper(p, e.target.value)} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                    style={{ padding: '6px 8px', fontSize: 13 }} />
+                  {p.precio_super ? (
+                    <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3, lineHeight: 1.3 }} title={p.super_nombre || ''}>
+                      <span style={{ color: SUPER_TIPO[p.super_tipo || '']?.c || 'var(--muted)' }}>{SUPER_TIPO[p.super_tipo || '']?.l || p.super_tipo}</span>
+                      {p.costo ? <> · margen {pct(1 - Number(p.costo) / Number(p.precio_super))}</> : null}
+                      {p.super_nombre && p.super_tipo !== 'manual' && <> · <a href={superLink(p.super_nombre)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--muted)' }}>ver</a></>}
+                    </div>
+                  ) : null}
+                </td>
                 <td style={{ padding: '8px 10px', borderBottom: '1px solid var(--borderl)', whiteSpace: 'nowrap' }}>
                   <button onClick={() => { setEdit({ ...p }); setEsNuevo(false) }} style={{ ...b(), padding: '4px 9px', fontSize: 11 }}>Editar</button>{' '}
                   <button onClick={() => toggleActivo(p)} style={{ ...b(p.activo ? undefined : 'green'), padding: '4px 9px', fontSize: 11 }}>{p.activo ? 'Pausar' : 'Activar'}</button>
                 </td>
               </tr>
             ))}
-            {!lista.length && <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--muted)' }}>No se encontraron productos.</td></tr>}
+            {!lista.length && <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--muted)' }}>No se encontraron productos.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -720,6 +767,7 @@ function Guardados({ armados, setArmados, avisar }: { armados: Armado[]; setArma
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: 13, flexWrap: 'wrap' }}>
                 <span><span style={{ color: 'var(--muted)', fontSize: 11 }}>Venta </span>{whole(Number(a.precio))}</span>
                 <span><span style={{ color: 'var(--muted)', fontSize: 11 }}>Mercadería </span>{whole(Number(a.costo_mercaderia))}</span>
+                {a.valor_super ? <span title="Lo que pagaría en el súper"><span style={{ color: 'var(--muted)', fontSize: 11 }}>Súper </span>{whole(Number(a.valor_super))} <span style={{ fontSize: 11, color: Number(a.valor_super) >= Number(a.precio) ? '#1a7a40' : '#a32e27' }}>({Number(a.valor_super) >= Number(a.precio) ? 'ahorra ' : '+'}{pct(Math.abs(Number(a.valor_super) - Number(a.precio)) / Number(a.valor_super))})</span></span> : null}
                 <span style={{ color: margen !== null && margen < .3 ? '#a32e27' : '#1a7a40' }}>{margen === null ? '—' : pct(margen)}</span>
                 <button onClick={() => toggleVenta(a)} title="Mostrar u ocultar en la pantalla de Venta" style={{ ...b(a.en_venta === false ? undefined : 'green'), padding: '4px 9px', fontSize: 11 }}>{a.en_venta === false ? 'Pausado' : '✓ En venta'}</button>
                 <button onClick={() => copiar(a)} style={{ ...b(), padding: '4px 9px', fontSize: 11 }}>Copiar</button>
