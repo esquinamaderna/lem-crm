@@ -16,6 +16,7 @@ const NAV_TRANSACCIONES = [
 const NAV_OPERACIONES = [
   { href: '/productos',  label: 'Productos' },
   { href: '/combos',     label: 'Combos' },
+  { href: '/boxes',      label: 'Boxes' },
   { href: '/ocasiones',  label: 'Ocasiones' },
   { href: '/fichas',     label: 'Fichas' },
   { href: '/produccion', label: 'Producción' },

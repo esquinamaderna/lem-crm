@@ -1,0 +1,135 @@
+// Motor del armador de boxes (portado de Maderna_Armador_Navidad.html)
+// Regla central: una sola variante por "familia" de producto (aceite, arroz, pan dulce…)
+// sin importar marca, presentación o grupo A/B/C.
+
+export type Grupo = 'A' | 'B' | 'C' | 'Especial'
+
+export interface BoxProducto {
+  id: string
+  nombre: string
+  marca: string | null
+  presentacion: string | null
+  costo: number | null
+  grupo: Grupo
+  familia: string | null
+  tipos: string[]
+  estado: string | null
+  precio_tipo: string | null
+  precio_nota: string | null
+  precio_fecha: string | null
+  precio_fuente: string | null
+  activo: boolean
+}
+
+export interface BoxTamano { tamano: number; precio: number; grupos: Grupo[]; objetivo: number }
+export interface BoxTipo { nombre: string; familia: string; descripcion: string | null; orden: number }
+export interface BoxOcasion { id: string; nombre: string; fecha: string | null; regla: string | null; fuente: string | null; orden: number }
+
+export const NAVIDENA = 'Navideña'
+export const OCASIONES_NAVIDAD = ['navidad', 'nochebuena']
+
+export const cents = (x: number) => Math.round(x * 100)
+const normalize = (s: string) =>
+  String(s).toLocaleLowerCase('es').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().replace(/\s+/g, ' ')
+
+export function key(p: BoxProducto): string {
+  if (p.familia) return normalize(p.familia)
+  const name = normalize(p.nombre)
+  for (const prefix of ['arroz', 'aceite', 'fideos', 'harina', 'galletitas', 'cafe', 'leche', 'sal', 'arvejas', 'detergente', 'esponja', 'lavandina'])
+    if (name === prefix || name.startsWith(prefix + ' ')) return prefix
+  if (/^pure (de )?tomate$/.test(name)) return 'pure de tomate'
+  if (name === 'jabon en polvo' || name.startsWith('jabon ropa ')) return 'jabon para ropa'
+  return name
+}
+
+export const priced = (p: BoxProducto) => p.activo !== false && typeof p.costo === 'number' && Number.isFinite(p.costo) && p.costo >= 0
+
+export function pool(products: BoxProducto[], type: string, group: Grupo, used: BoxProducto[] = []) {
+  const seen = new Set(used.map(key))
+  return products.filter(p => p.tipos.includes(type) && p.grupo === group && priced(p) && !seen.has(key(p)))
+}
+
+type Sol = { cost: number; items: BoxProducto[] }
+
+function solve(products: BoxProducto[], type: string, groups: Grupo[], used: BoxProducto[] = []): Sol {
+  // La navideña siempre lleva un pan dulce: se reserva primero.
+  if (type === NAVIDENA && !used.some(p => key(p) === 'pan dulce')) {
+    const at = groups.indexOf('A')
+    if (at < 0) return { cost: Infinity, items: [] }
+    const rest = groups.slice(); rest.splice(at, 1)
+    let best: Sol = { cost: Infinity, items: [] }
+    for (const p of pool(products, type, 'A', used).filter(p => key(p) === 'pan dulce')) {
+      const tail = solve(products, type, rest, [...used, p]), cost = cents(p.costo!) + tail.cost
+      if (cost < best.cost) best = { cost, items: [p, ...tail.items] }
+    }
+    return best
+  }
+  const G = ['A', 'B', 'C'] as const
+  const target = G.map(g => groups.filter(x => x === g).length)
+  const taken = new Set(used.map(key))
+  const families = new Map<string, Partial<Record<Grupo, BoxProducto>>>()
+  for (const p of products) {
+    if (!p.tipos.includes(type) || !(G as readonly string[]).includes(p.grupo) || !priced(p) || taken.has(key(p))) continue
+    const v = families.get(key(p)) || {}
+    if (!v[p.grupo] || p.costo! < v[p.grupo]!.costo!) v[p.grupo] = p
+    families.set(key(p), v)
+  }
+  type St = { cost: number; items: BoxProducto[]; counts: number[] }
+  let dp = new Map<string, St>([['0,0,0', { cost: 0, items: [], counts: [0, 0, 0] }]])
+  for (const variants of Array.from(families.values())) {
+    const next = new Map(dp)
+    for (const st of Array.from(dp.values())) for (let g = 0; g < 3; g++) {
+      const p = variants[G[g]]
+      if (!p || st.counts[g] >= target[g]) continue
+      const counts = st.counts.slice(); counts[g]++
+      const id = counts.join(','), cost = st.cost + cents(p.costo!)
+      if (!next.has(id) || cost < next.get(id)!.cost) next.set(id, { cost, items: [...st.items, p], counts })
+    }
+    dp = next
+  }
+  return dp.get(target.join(',')) || { cost: Infinity, items: [] }
+}
+
+export const minimum = (products: BoxProducto[], type: string, groups: Grupo[], used: BoxProducto[] = []) =>
+  solve(products, type, groups, used).cost
+
+export function slotAllowed(type: string, p: BoxProducto, i: number) {
+  return type !== NAVIDENA || (i === 0 ? key(p) === 'pan dulce' : key(p) !== 'pan dulce')
+}
+
+export type GenResult =
+  | { ok: false; items: [] }
+  | { ok: true; items: BoxProducto[]; cost: number; minimum: number; over: boolean }
+
+export function generate(products: BoxProducto[], type: string, rule: BoxTamano, budget: number, rng = Math.random): GenResult {
+  const groups = rule.grupos, best = solve(products, type, groups), min = best.cost
+  if (!Number.isFinite(min)) return { ok: false, items: [] }
+  if (min > cents(budget)) {
+    const remaining = best.items.slice()
+    const items = groups.map(g => remaining.splice(remaining.findIndex(p => p.grupo === g), 1)[0])
+    return { ok: true, items, cost: min / 100, minimum: min / 100, over: true }
+  }
+  const selected: BoxProducto[] = []
+  let spent = 0
+  for (let i = 0; i < groups.length; i++) {
+    const possible = pool(products, type, groups[i], selected)
+      .filter(p => slotAllowed(type, p, i))
+      .filter(p => spent + cents(p.costo!) + minimum(products, type, groups.slice(i + 1), [...selected, p]) <= cents(budget))
+    if (!possible.length) return { ok: false, items: [] }
+    const p = possible[Math.min(possible.length - 1, Math.floor(rng() * possible.length))]
+    selected.push(p); spent += cents(p.costo!)
+  }
+  return { ok: true, items: selected, cost: spent / 100, minimum: min / 100, over: false }
+}
+
+export function metrics(items: (BoxProducto | null)[], rule: BoxTamano, packaging: number, commissionPct: number) {
+  const cost = items.filter(Boolean).reduce((s, p) => s + cents(p!.costo || 0), 0) / 100
+  const fee = Math.round(rule.precio * commissionPct) / 100
+  const total = Math.round((cost + packaging + fee) * 100) / 100
+  return {
+    cost, fee, total,
+    profit: rule.precio - total,
+    margin: (rule.precio - total) / rule.precio,
+    complete: items.length === rule.grupos.length && items.every(Boolean),
+  }
+}
